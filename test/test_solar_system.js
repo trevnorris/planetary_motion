@@ -43,7 +43,7 @@ const uranus = new SystemBody('uranus',
                               new Vector(0, URANUS.AVG_SPEED, 0));
 
 //const solar_system = new SolarSystem([sun, venus, earth, mars, jupiter]);
-const solar_system = new SolarSystem([sun, earth, jupiter, saturn]);
+const solar_system = new SolarSystem([sun, earth]);
 
 //const log_file_fd = fs.openSync(`${__dirname}/logs/${Date.now()}.log`, 'w+');
 
@@ -76,7 +76,7 @@ const ITER = YEARS * 365 * 24 * 60 * 60 / STEP_SEC;
 let iter = 0;
 const d = Date.now();
 const t = process.hrtime();
-while (Date.now() - d < (1000 * 120)) {
+while (Date.now() - d < (1000 * 10)) {
   for (let i = 0; i < 100000; i++) {
     iter++;
     solar_system.step(STEP_SEC);
@@ -116,9 +116,9 @@ function print_planet(p) {
   const vel = p.velocity();
   const acc = p.acceleration();
   console.log(p.name);
-  console.log(`  [position]     x: ${(pos.x/AU).toFixed(3)}\ty: ${(pos.y/AU).toFixed(3)}\tmag: ${(pos.len()/AU).toFixed(3)}`);
-  console.log(`  [velocity]     x: ${vel.x.toExponential(3).replace('+','')}\ty: ${vel.y.toExponential(3).replace('+','')}\tsun: ${(pos.mag(sun.position())/AU).toFixed(3)}`);
-  console.log(`  [acceleration] x: ${acc.x.toExponential(3).replace('+','')}\ty: ${acc.y.toExponential(3).replace('+','')}`);
+  console.log(`  [position]     x: ${(pos[0]/AU).toFixed(3)}\ty: ${(pos[1]/AU).toFixed(3)}\tmag: ${(pos.len()/AU).toFixed(3)}`);
+  console.log(`  [velocity]     x: ${vel[0].toExponential(3).replace('+','')}\ty: ${vel[1].toExponential(3).replace('+','')}\tsun: ${(pos.mag(sun.position())/AU).toFixed(3)}`);
+  console.log(`  [acceleration] x: ${acc[0].toExponential(3).replace('+','')}\ty: ${acc[1].toExponential(3).replace('+','')}`);
 }
 
 function format_planet(p) {
@@ -128,8 +128,8 @@ function format_planet(p) {
   return {
     name: p.name,
     //mass: p.mass,
-    pos: { x: pos.x, y: pos.y, z: pos.z },
-    vel: { x: vel.x, y: vel.y, z: vel.z },
-    accel: { x: acc.x, y: acc.y, z: acc.z },
+    pos: { x: pos[0], y: pos[1], z: pos[2] },
+    vel: { x: vel[0], y: vel[1], z: vel[2] },
+    accel: { x: acc[0], y: acc[1], z: acc[2] },
   };
 }
