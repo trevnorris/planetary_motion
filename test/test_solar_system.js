@@ -4,7 +4,7 @@ const fs = require('fs');
 const Vector = require('../lib/vector');
 const SystemBody = require('../lib/system_body');
 const SolarSystem = require('../lib/solar_system');
-const { CONSTS, SUN, EARTH, MARS, VENUS, JUPITER } =
+const { CONSTS, SUN, EARTH, MARS, VENUS, JUPITER, SATURN, URANUS } =
   require('../lib/constants');
 const { AU } = CONSTS;
 
@@ -32,8 +32,18 @@ const jupiter = new SystemBody('jupiter',
                                new Vector(JUPITER.AVG_APSIS, 0, 0),
                                new Vector(0, JUPITER.AVG_SPEED, 0));
 
+const saturn = new SystemBody('saturn',
+                              SATURN.MASS,
+                              new Vector(SATURN.AVG_APSIS, 0, 0),
+                              new Vector(0, SATURN.AVG_SPEED, 0));
+
+const uranus = new SystemBody('uranus',
+                              URANUS.MASS,
+                              new Vector(URANUS.AVG_APSIS, 0, 0),
+                              new Vector(0, URANUS.AVG_SPEED, 0));
+
 //const solar_system = new SolarSystem([sun, venus, earth, mars, jupiter]);
-const solar_system = new SolarSystem([sun, jupiter]);
+const solar_system = new SolarSystem([sun, earth, jupiter, saturn]);
 
 //const log_file_fd = fs.openSync(`${__dirname}/logs/${Date.now()}.log`, 'w+');
 
@@ -66,8 +76,8 @@ const ITER = YEARS * 365 * 24 * 60 * 60 / STEP_SEC;
 let iter = 0;
 const d = Date.now();
 const t = process.hrtime();
-while (Date.now() - d < (1000 * 240)) {
-  for (let i = 0; i < 10000; i++) {
+while (Date.now() - d < (1000 * 120)) {
+  for (let i = 0; i < 100000; i++) {
     iter++;
     solar_system.step(STEP_SEC);
   }
@@ -97,8 +107,8 @@ solar_system.bodies().forEach(e => print_planet(e));
 //console.log(min_len / AU, max_len / AU);
 
 //console.log(`step_sec: ${STEP_SEC}   ${((u[0] * 1e9 + u[1]) / ITER).toFixed(2)} ns/iter   ${(u[0] + u[1] / 1e9).toFixed(2)} seconds`);
-console.log(`iter: ${iter}   step: ${STEP_SEC}   ${((u[0] * 1e9 + u[1]) / iter).toFixed(2)} ns/iter   ${(u[0] + u[1] / 1e9).toFixed(2)} seconds`);
-console.log(`${(iter / 60 / 60 / 24).toFixed(1)} days computed`);
+console.log(`step: ${STEP_SEC}   iter: ${iter}   ${((u[0] * 1e9 + u[1]) / iter).toFixed(2)} ns/iter   ${((u[0] + u[1] / 1e9) / 60).toFixed(2)} minutes`);
+console.log(`${(iter / 60 / 60 / 24 / 365.256).toFixed(3)} years computed`);
 
 
 function print_planet(p) {
@@ -106,9 +116,9 @@ function print_planet(p) {
   const vel = p.velocity();
   const acc = p.acceleration();
   console.log(p.name);
-  console.log(`  [position]     x: ${(pos.x/AU).toFixed(4)}\ty: ${(pos.y/AU).toFixed(4)}\tmag: ${pos.len()/AU}`);
-  console.log(`  [velocity]     x: ${vel.x.toExponential(3)}\ty: ${vel.y.toExponential(3)}`);
-  console.log(`  [acceleration] x: ${acc.x.toExponential(3)}\ty: ${acc.y.toExponential(3)}`);
+  console.log(`  [position]     x: ${(pos.x/AU).toFixed(3)}\ty: ${(pos.y/AU).toFixed(3)}\tmag: ${(pos.len()/AU).toFixed(3)}`);
+  console.log(`  [velocity]     x: ${vel.x.toExponential(3).replace('+','')}\ty: ${vel.y.toExponential(3).replace('+','')}\tsun: ${(pos.mag(sun.position())/AU).toFixed(3)}`);
+  console.log(`  [acceleration] x: ${acc.x.toExponential(3).replace('+','')}\ty: ${acc.y.toExponential(3).replace('+','')}`);
 }
 
 function format_planet(p) {
