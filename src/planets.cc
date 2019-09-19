@@ -254,11 +254,6 @@ int main(int argc, char* argv[]) {
 }
 
 
-double len(Coord& c1) {
-  return sqrt(c1.x * c1.x + c1.y * c1.y + c1.z * c1.z);
-}
-
-
 double mag(Coord* c1, Coord* c2) {
   return sqrt(pow(c1->x - c2->x, 2) + pow(c1->y - c2->y, 2) +
       pow(c1->z - c2->z, 2));
@@ -266,11 +261,11 @@ double mag(Coord* c1, Coord* c2) {
 
 
 void add_acceleration(Planet* p1, Planet* p2) {
-  double m = mag(&p1->pos, &p2->pos);
+  double m = 1 / mag(&p1->pos, &p2->pos);
   double msq = m * m;
-  p1->acc.x += (-G * p2->mass / msq) * ((p1->pos.x - p2->pos.x) / m);
-  p1->acc.y += (-G * p2->mass / msq) * ((p1->pos.y - p2->pos.y) / m);
-  p1->acc.z += (-G * p2->mass / msq) * ((p1->pos.z - p2->pos.z) / m);
+  p1->acc.x += (-G * p2->mass * msq) * ((p1->pos.x - p2->pos.x) * m);
+  p1->acc.y += (-G * p2->mass * msq) * ((p1->pos.y - p2->pos.y) * m);
+  p1->acc.z += (-G * p2->mass * msq) * ((p1->pos.z - p2->pos.z) * m);
 }
 
 
@@ -291,6 +286,11 @@ void printSystem(SolarSystem* ssm, Planet* sun) {
     if ((*p)->name == "sun") continue;
     printPlanet(*p, sun);
   }
+}
+
+
+double len(Coord& c1) {
+  return sqrt(c1.x * c1.x + c1.y * c1.y + c1.z * c1.z);
 }
 
 
