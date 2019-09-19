@@ -1,11 +1,21 @@
+#include "deps/inih.h"
+#include "deps/cxxopts.h"
+
+#include <uv.h>
+
+#include <signal.h>
+
 #include <chrono>
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sstream>
 
 using std::pow;
 using std::sqrt;
+using std::stod;
 using std::string;
+using std::stringstream;
 using std::vector;
 
 #define G 6.67408e-11
@@ -35,6 +45,16 @@ struct Planet {
     : name(n), mass(m), pos(), vel(), acc() { }
   Planet(string n, double m, Coord p, Coord v, Coord a)
     : name(n), mass(m), pos(p), vel(v), acc(a) { }
+  Planet(string n,
+         double m,
+         vector<double> p,
+         vector<double> v,
+         vector<double> a)
+    : name(n), mass(m) {
+    pos = { p[0], p[1], p[2] };
+    vel = { v[0], v[1], v[2] };
+    acc = { a[0], a[1], a[2] };
+  }
   string name;
   double mass;
   Coord pos;
@@ -46,7 +66,7 @@ struct Planet {
 struct SolarSystem {
   SolarSystem() { }
   SolarSystem(vector<Planet*> p) : planets(p) { }
-  std::vector<Planet*> planets;
+  vector<Planet*> planets;
   void step(uint64_t t) {
     for (auto b1 = planets.begin(); b1 != planets.end(); ++b1) {
       (*b1)->acc = { 0, 0, 0 };
@@ -59,67 +79,152 @@ struct SolarSystem {
       add_position_velocity(*b1, t);
     }
   }
+  Planet* get_planet(string name) {
+    for (auto planet : planets) {
+      if (planet->name == name) {
+        return planet;
+      }
+    }
+    return nullptr;
+  }
 };
 
 
-int main() {
-  Planet sun("sun", 1.9885e30);
+cxxopts::Options* retrieve_options() {
+  auto options = new cxxopts::Options(
+      "Planetary Motion", "Calculate the planetary motion for a solar system");
+  options->add_options()
+    ("p,planets",
+     "path to planets.ini",
+     cxxopts::value<string>()->default_value("planets.ini"))
+    ("h,help", "print help")
+    ("s,step",
+     "time in seconds (as double) each calculation should take",
+     cxxopts::value<size_t>()->default_value("1"))
+    ("d,duration",
+     "how long, in seconds, the calculation should go",
+     cxxopts::value<uint64_t>()->default_value("10"));
+  return options;
+}
 
-  Planet venus("venus",
-               4.8675e24,
-               Coord({ 1.08208e11, 0, 0 }),
-               Coord({ 0, 35020, 0 }),
-               Coord({ 0, 0, 0 }));
 
-  Planet earth("earth",
-               5.97237e24,
-               Coord({ 1.495975e11, 0, 0 }),
-               Coord({ 0, 29780, 0 }),
-               Coord({ 0, 0, 0 }));
+vector<double> parse_coord(string vals) {
+  vector<double> coord;
+  stringstream ss(vals);
+  string num;
+  while (getline(ss, num, ',')) {
+    coord.push_back(stod(num));
+  }
+  return coord;
+}
 
-  Planet mars("mars",
-              6.4171e23,
-              Coord({ 2.2795e11, 0, 0 }),
-              Coord({ 0, 24007, 0 }),
-              Coord({ 0, 0, 0 }));
 
-  Planet jupiter("jupiter",
-                 1.8982e27,
-                 Coord({ 7.785746345215e11, 0, 0 }),
-                 Coord({ 0, 13070, 0 }),
-                 Coord({ 0, 0, 0 }));
+Planet* gen_planet(INIReader* reader, const char* name) {
+  double mass = reader->GetReal(name, "mass", 0);
+  vector<double> pos = parse_coord(reader->Get(name, "position", "0,0,0"));
+  vector<double> vel = parse_coord(reader->Get(name, "velocity", "0,0,0"));
+  vector<double> acc = parse_coord(reader->Get(name, "acceleration", "0,0,0"));
+  return new Planet(name, mass, pos, vel, acc);
+}
 
-  Planet saturn("saturn",
-                5.6834e26,
-                Coord({ 1.433521589275e12, 0, 0 }),
-                Coord({ 0, 9680, 0 }),
-                Coord({ 0, 0, 0 }));
 
-  Planet uranus("uranus",
-                8.6810e25,
-                Coord({ 2.8752710614e12, 0, 0 }),
-                Coord({ 0, 6800, 0 }),
-                Coord({ 0, 0, 0 }));
+SolarSystem* generate_solar_system(const char* ini_realpath) {
+  INIReader reader(ini_realpath);
+  vector<Planet*> planets;
 
-  SolarSystem ssm({ &sun, &venus, &earth, &mars, &jupiter, &saturn, &uranus });
-  size_t STEP_SEC = 1;
-  uint64_t DUR = 1e9 * 10;   // 1e9 is 1 sec
-  size_t iter = 0;
+  if (reader.ParseError() != 0) {
+    fprintf(stderr, "can't load '%s'\n", ini_realpath);
+    return nullptr;
+  }
 
-  printSystem(&ssm, &sun);
+  for (auto elem : reader.Sections()) {
+    planets.push_back(gen_planet(&reader, elem.c_str()));
+  }
+
+  return new SolarSystem(planets);
+}
+
+
+uint64_t t;
+size_t STEP_SEC;
+size_t iter;
+SolarSystem* ssm;
+Planet* sun;
+void s_handler(int s) {
+  printf("%c[2K\r", 27);
+  t = hrtime() - t;
+  printSystem(ssm, sun);
+  printf("step: %lu    iter: %lu   %.2f ns/iter   %.2f minutes\n",
+         STEP_SEC,
+         iter,
+         1.0 * t / iter,
+         1.0 * t / 1e9 / 60);
+  printf("%.2f years computed\n",
+         1.0 * iter * STEP_SEC / 60 / 60 / 24 / 365.256);
+  exit(0);
+}
+
+
+int main(int argc, char* argv[]) {
+  struct sigaction sigIntHandler;
+  uv_fs_t ini_path_fs;
+  int err;
+
+  sigIntHandler.sa_handler = s_handler;
+  sigemptyset(&sigIntHandler.sa_mask);
+  sigIntHandler.sa_flags = 0;
+
+  sigaction(SIGINT, &sigIntHandler, nullptr);
+
+  cxxopts::Options* options = retrieve_options();
+  auto result = options->parse(argc, argv);
+  auto ini_path = result["planets"].as<string>().c_str();
+
+  if (result.count("help")) {
+    printf("%s", options->help({""}).c_str());
+    return 0;
+  }
+
+  err = uv_fs_realpath(nullptr, &ini_path_fs, ini_path, nullptr);
+
+  if (err == UV_ENOENT) {
+    fprintf(stderr, "%s file does not exist\n", ini_path);
+    return 1;
+  } else if (err) {
+    fprintf(stderr, "planets ini file error: %s\n", uv_err_name(err));
+    return 1;
+  }
+
+  ssm = generate_solar_system(static_cast<char*>(ini_path_fs.ptr));
+  uv_fs_req_cleanup(&ini_path_fs);
+
+  if (ssm == nullptr) {
+    return 1;
+  }
+
+  sun = ssm->get_planet("sun");
+  //printSystem(ssm, ssm->get_planet("sun"));
+
+  //size_t STEP_SEC = 1;
+  //uint64_t DUR = 1e9 * 10;   // 1e9 is 1 sec
+  uint64_t DUR = 1e9 * result["duration"].as<uint64_t>();   // 1e9 is 1 sec
+  STEP_SEC = result["step"].as<size_t>();
+  iter = 0;
+
+  printSystem(ssm, sun);
   printf("\n");
 
-  uint64_t t = hrtime();
+  t = hrtime();
 
   do {
     for (size_t i = 0; i < 100000; i++) {
       iter++;
-      ssm.step(STEP_SEC);
+      ssm->step(STEP_SEC);
     }
   } while (hrtime() - t < DUR);
 
   t = hrtime() - t;
-  printSystem(&ssm, &sun);
+  printSystem(ssm, sun);
   printf("step: %lu    iter: %lu   %.2f ns/iter   %.2f minutes\n",
          STEP_SEC,
          iter,
@@ -128,6 +233,12 @@ int main() {
   printf("%.2f years computed\n",
          1.0 * iter * STEP_SEC / 60 / 60 / 24 / 365.256);
 
+  delete options;
+  for (auto p : ssm->planets) {
+    delete p;
+  }
+  ssm->planets.clear();
+  delete ssm;
   return 0;
 }
 
@@ -164,7 +275,9 @@ void add_position_velocity(Planet* p1, double t) {
 
 
 void printSystem(SolarSystem* ssm, Planet* sun) {
+  printPlanet(sun, sun);
   for (auto p = ssm->planets.begin(); p != ssm->planets.end(); p++) {
+    if ((*p)->name == "sun") continue;
     printPlanet(*p, sun);
   }
 }
