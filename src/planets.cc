@@ -68,15 +68,15 @@ struct SolarSystem {
   SolarSystem(vector<Planet*> p) : planets(p) { }
   vector<Planet*> planets;
   void step(uint64_t t) {
-    for (auto b1 = planets.begin(); b1 != planets.end(); ++b1) {
-      (*b1)->acc = { 0, 0, 0 };
-      for (auto b2 = planets.begin(); b2 != planets.end(); ++b2) {
-        if (*b1 == *b2) {
+    for (auto b1 : planets) {
+      b1->acc = { 0, 0, 0 };
+      for (auto b2 : planets) {
+        if (b1 == b2) {
           continue;
         }
-        add_acceleration(*b1, *b2);
+        add_acceleration(b1, b2);
       }
-      add_position_velocity(*b1, t);
+      add_position_velocity(b1, t);
     }
   }
   Planet* get_planet(string name) {
@@ -255,26 +255,23 @@ int main(int argc, char* argv[]) {
 }
 
 
-static inline double mag(Coord* c1, Coord* c2) {
-  return sqrt(pow(c1->x - c2->x, 2) + pow(c1->y - c2->y, 2) +
-      pow(c1->z - c2->z, 2));
-}
-
-
 static inline void add_acceleration(Planet* p1, Planet* p2) {
-  double m = 1 / mag(&p1->pos, &p2->pos);
-  double msq = m * m;
-  p1->acc.x += (-G * p2->mass * msq) * ((p1->pos.x - p2->pos.x) * m);
-  p1->acc.y += (-G * p2->mass * msq) * ((p1->pos.y - p2->pos.y) * m);
-  p1->acc.z += (-G * p2->mass * msq) * ((p1->pos.z - p2->pos.z) * m);
+  double x = p1->pos.x - p2->pos.x;
+  double y = p1->pos.y - p2->pos.y;
+  double z = p1->pos.z - p2->pos.z;
+  double m = 1 / sqrt(x * x + y * y + z * z);
+  double pre = -G * p2->mass * m * m;
+  p1->acc.x += pre * x * m;
+  p1->acc.y += pre * y * m;
+  p1->acc.z += pre * z * m;
 }
 
 
 static inline void add_position_velocity(Planet* p1, double t) {
-  double tsq = t * t;
-  p1->pos.x += p1->vel.x * t + p1->acc.x * tsq / 2;
-  p1->pos.y += p1->vel.y * t + p1->acc.y * tsq / 2;
-  p1->pos.z += p1->vel.z * t + p1->acc.z * tsq / 2;
+  double tsq = t * t * 0.5;
+  p1->pos.x += p1->vel.x * t + p1->acc.x * tsq;
+  p1->pos.y += p1->vel.y * t + p1->acc.y * tsq;
+  p1->pos.z += p1->vel.z * t + p1->acc.z * tsq;
   p1->vel.x += p1->acc.x * t;
   p1->vel.y += p1->acc.y * t;
   p1->vel.z += p1->acc.z * t;
@@ -283,15 +280,21 @@ static inline void add_position_velocity(Planet* p1, double t) {
 
 static void printSystem(SolarSystem* ssm, Planet* sun) {
   printPlanet(sun, sun);
-  for (auto p = ssm->planets.begin(); p != ssm->planets.end(); p++) {
-    if ((*p)->name == "sun") continue;
-    printPlanet(*p, sun);
+  for (auto p : ssm->planets) {
+    if (p->name == sun->name) continue;
+    printPlanet(p, sun);
   }
 }
 
 
 static double len(Coord& c1) {
   return sqrt(c1.x * c1.x + c1.y * c1.y + c1.z * c1.z);
+}
+
+
+static inline double mag(Coord* c1, Coord* c2) {
+  return sqrt(pow(c1->x - c2->x, 2) + pow(c1->y - c2->y, 2) +
+      pow(c1->z - c2->z, 2));
 }
 
 
