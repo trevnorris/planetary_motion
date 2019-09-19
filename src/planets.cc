@@ -23,12 +23,12 @@ using std::vector;
 
 struct SolarSystem;
 struct Planet;
-void printSystem(SolarSystem* ssm, Planet*);
-void printPlanet(Planet* p, Planet* sun);
-void add_acceleration(Planet* p1, Planet* p2);
-void add_position_velocity(Planet* p1, double t);
+static void printSystem(SolarSystem* ssm, Planet*);
+static void printPlanet(Planet* p, Planet* sun);
+static inline void add_acceleration(Planet* p1, Planet* p2);
+static inline void add_position_velocity(Planet* p1, double t);
 
-uint64_t hrtime() {
+static uint64_t hrtime() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
       std::chrono::steady_clock::now().time_since_epoch()).count();
 }
@@ -111,7 +111,7 @@ cxxopts::Options* retrieve_options() {
 }
 
 
-vector<double> parse_coord(string vals) {
+static vector<double> parse_coord(string vals) {
   vector<double> coord;
   stringstream ss(vals);
   string num;
@@ -122,7 +122,7 @@ vector<double> parse_coord(string vals) {
 }
 
 
-Planet* gen_planet(INIReader* reader, const char* name) {
+static Planet* gen_planet(INIReader* reader, const char* name) {
   double mass = reader->GetReal(name, "mass", 0);
   vector<double> pos = parse_coord(reader->Get(name, "position", "0,0,0"));
   vector<double> vel = parse_coord(reader->Get(name, "velocity", "0,0,0"));
@@ -131,7 +131,7 @@ Planet* gen_planet(INIReader* reader, const char* name) {
 }
 
 
-SolarSystem* generate_solar_system(const char* ini_realpath) {
+static SolarSystem* generate_solar_system(const char* ini_realpath) {
   INIReader reader(ini_realpath);
   vector<Planet*> planets;
 
@@ -148,6 +148,7 @@ SolarSystem* generate_solar_system(const char* ini_realpath) {
 }
 
 
+// TODO: Fix this horrible ugliness...
 uint64_t t;
 size_t STEP_SEC;
 size_t iter;
@@ -254,13 +255,13 @@ int main(int argc, char* argv[]) {
 }
 
 
-double mag(Coord* c1, Coord* c2) {
+static inline double mag(Coord* c1, Coord* c2) {
   return sqrt(pow(c1->x - c2->x, 2) + pow(c1->y - c2->y, 2) +
       pow(c1->z - c2->z, 2));
 }
 
 
-void add_acceleration(Planet* p1, Planet* p2) {
+static inline void add_acceleration(Planet* p1, Planet* p2) {
   double m = 1 / mag(&p1->pos, &p2->pos);
   double msq = m * m;
   p1->acc.x += (-G * p2->mass * msq) * ((p1->pos.x - p2->pos.x) * m);
@@ -269,7 +270,7 @@ void add_acceleration(Planet* p1, Planet* p2) {
 }
 
 
-void add_position_velocity(Planet* p1, double t) {
+static inline void add_position_velocity(Planet* p1, double t) {
   double tsq = t * t;
   p1->pos.x += p1->vel.x * t + p1->acc.x * tsq / 2;
   p1->pos.y += p1->vel.y * t + p1->acc.y * tsq / 2;
@@ -280,7 +281,7 @@ void add_position_velocity(Planet* p1, double t) {
 }
 
 
-void printSystem(SolarSystem* ssm, Planet* sun) {
+static void printSystem(SolarSystem* ssm, Planet* sun) {
   printPlanet(sun, sun);
   for (auto p = ssm->planets.begin(); p != ssm->planets.end(); p++) {
     if ((*p)->name == "sun") continue;
@@ -289,12 +290,12 @@ void printSystem(SolarSystem* ssm, Planet* sun) {
 }
 
 
-double len(Coord& c1) {
+static double len(Coord& c1) {
   return sqrt(c1.x * c1.x + c1.y * c1.y + c1.z * c1.z);
 }
 
 
-void printPlanet(Planet* p, Planet* sun) {
+static void printPlanet(Planet* p, Planet* sun) {
   printf("[%s]\n", p->name.c_str());
   //printf("  [position]  x: %-14.3fy: %-14.3fz: %.3f\n",
          //p->pos.x / AU,
