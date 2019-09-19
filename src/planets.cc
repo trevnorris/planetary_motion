@@ -103,7 +103,10 @@ cxxopts::Options* retrieve_options() {
      cxxopts::value<size_t>()->default_value("1"))
     ("d,duration",
      "how long, in seconds, the calculation should go",
-     cxxopts::value<uint64_t>()->default_value("10"));
+     cxxopts::value<uint64_t>()->default_value("10"))
+    ("y,years",
+     "how many earth years the test should proceed",
+     cxxopts::value<uint64_t>()->default_value("0"));
   return options;
 }
 
@@ -208,6 +211,7 @@ int main(int argc, char* argv[]) {
   //size_t STEP_SEC = 1;
   //uint64_t DUR = 1e9 * 10;   // 1e9 is 1 sec
   uint64_t DUR = 1e9 * result["duration"].as<uint64_t>();   // 1e9 is 1 sec
+  uint64_t YEARS = result["years"].as<uint64_t>();
   STEP_SEC = result["step"].as<size_t>();
   iter = 0;
 
@@ -216,12 +220,19 @@ int main(int argc, char* argv[]) {
 
   t = hrtime();
 
-  do {
-    for (size_t i = 0; i < 100000; i++) {
+  if (YEARS > 0) {
+    for (size_t i = 0; i < YEARS * STEP_SEC * 86400 * 365.256; i += STEP_SEC) {
       iter++;
       ssm->step(STEP_SEC);
     }
-  } while (hrtime() - t < DUR);
+  } else {
+    do {
+      for (size_t i = 0; i < 100000; i++) {
+        iter++;
+        ssm->step(STEP_SEC);
+      }
+    } while (hrtime() - t < DUR);
+  }
 
   t = hrtime() - t;
   printSystem(ssm, sun);
@@ -231,7 +242,7 @@ int main(int argc, char* argv[]) {
          1.0 * t / iter,
          1.0 * t / 1e9 / 60);
   printf("%.2f years computed\n",
-         1.0 * iter * STEP_SEC / 60 / 60 / 24 / 365.256);
+         1.0 * iter * STEP_SEC / 86400 / 365.256);
 
   delete options;
   for (auto p : ssm->planets) {
