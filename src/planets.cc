@@ -312,7 +312,7 @@ static void printPlanet(Planet* p, Planet* sun) {
          //p->vel.x,
          //p->vel.y,
          //p->vel.z);
-  printf("  to sun: %-12.4e wobble: %-12.4e vel: %.1f\n",
+  printf("  to sun: %-12.4f wobble: %-12.4e vel: %.1f\n",
          mag(&p->pos, &sun->pos) / AU,
          (len(p->pos) / AU) - (mag(&p->pos, &sun->pos) / AU),
          len(p->vel));
