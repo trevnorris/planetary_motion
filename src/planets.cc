@@ -76,6 +76,10 @@ struct SolarSystem {
         }
         add_acceleration(b1, b2);
       }
+    }
+    // IMPORTANT: This loop must be kept separate, otherwise performance will
+    // drop substantially.
+    for (auto b1 : planets) {
       add_position_velocity(b1, t);
     }
   }
