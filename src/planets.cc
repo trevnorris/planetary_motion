@@ -68,9 +68,9 @@ struct SolarSystem {
   SolarSystem(vector<Planet*> p) : planets(p) { }
   vector<Planet*> planets;
   void step(uint64_t t) {
-    for (auto b1 : planets) {
+    for (auto& b1 : planets) {
       b1->acc = { 0, 0, 0 };
-      for (auto b2 : planets) {
+      for (auto& b2 : planets) {
         if (b1 == b2) {
           continue;
         }
@@ -79,7 +79,7 @@ struct SolarSystem {
     }
     // IMPORTANT: This loop must be kept separate, otherwise performance will
     // drop substantially.
-    for (auto b1 : planets) {
+    for (auto& b1 : planets) {
       add_position_velocity(b1, t);
     }
   }
@@ -260,14 +260,14 @@ int main(int argc, char* argv[]) {
 
 
 static inline void add_acceleration(Planet* p1, Planet* p2) {
-  double x = p1->pos.x - p2->pos.x;
-  double y = p1->pos.y - p2->pos.y;
-  double z = p1->pos.z - p2->pos.z;
-  double m = 1 / sqrt(x * x + y * y + z * z);
+  double dx = p1->pos.x - p2->pos.x;
+  double dy = p1->pos.y - p2->pos.y;
+  double dz = p1->pos.z - p2->pos.z;
+  double m = 1 / sqrt(dx * dx + dy * dy + dz * dz);
   double pre = -G * p2->mass * m * m;
-  p1->acc.x += pre * x * m;
-  p1->acc.y += pre * y * m;
-  p1->acc.z += pre * z * m;
+  p1->acc.x += pre * dx * m;
+  p1->acc.y += pre * dy * m;
+  p1->acc.z += pre * dz * m;
 }
 
 
