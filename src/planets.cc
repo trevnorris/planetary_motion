@@ -25,8 +25,8 @@ struct SolarSystem;
 struct Planet;
 static void printSystem(SolarSystem* ssm, Planet*);
 static void printPlanet(Planet* p, Planet* sun);
-static inline void add_acceleration(Planet* p1, Planet* p2);
 static inline void add_position_velocity(Planet* p1, double t);
+static inline void add_acceleration(Planet* p1, Planet* p2);
 
 static uint64_t hrtime() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -259,6 +259,17 @@ int main(int argc, char* argv[]) {
 }
 
 
+static inline void add_position_velocity(Planet* p1, double t) {
+  double tsq = t * t * 0.5;
+  p1->pos.x += p1->vel.x * t + p1->acc.x * tsq;
+  p1->pos.y += p1->vel.y * t + p1->acc.y * tsq;
+  p1->pos.z += p1->vel.z * t + p1->acc.z * tsq;
+  p1->vel.x += p1->acc.x * t;
+  p1->vel.y += p1->acc.y * t;
+  p1->vel.z += p1->acc.z * t;
+}
+
+
 static inline void add_acceleration(Planet* p1, Planet* p2) {
   double dx = p1->pos.x - p2->pos.x;
   double dy = p1->pos.y - p2->pos.y;
@@ -269,17 +280,6 @@ static inline void add_acceleration(Planet* p1, Planet* p2) {
   p1->acc.x += pre * dx * m;
   p1->acc.y += pre * dy * m;
   p1->acc.z += pre * dz * m;
-}
-
-
-static inline void add_position_velocity(Planet* p1, double t) {
-  double tsq = t * t * 0.5;
-  p1->pos.x += p1->vel.x * t + p1->acc.x * tsq;
-  p1->pos.y += p1->vel.y * t + p1->acc.y * tsq;
-  p1->pos.z += p1->vel.z * t + p1->acc.z * tsq;
-  p1->vel.x += p1->acc.x * t;
-  p1->vel.y += p1->acc.y * t;
-  p1->vel.z += p1->acc.z * t;
 }
 
 
