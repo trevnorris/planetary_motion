@@ -225,7 +225,7 @@ int main(int argc, char* argv[]) {
   t = hrtime();
 
   if (YEARS > 0) {
-    for (size_t i = 0; i < YEARS * STEP_SEC * 86400 * 365.256; i += STEP_SEC) {
+    for (size_t i = 0; i < YEARS * 86400 * 365.256; i += STEP_SEC) {
       iter++;
       ssm->step(STEP_SEC);
     }
