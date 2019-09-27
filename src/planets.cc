@@ -70,15 +70,14 @@ struct SolarSystem {
   void step(uint64_t t) {
     for (auto& b1 : planets) {
       b1->acc = { 0, 0, 0 };
-      for (auto& b2 : planets) {
-        if (b1 == b2) {
-          continue;
-        }
+    }
+    for (size_t i = 0; i < planets.size(); i++) {
+      auto b1 = planets[i];
+      for (size_t j = i + 1; j < planets.size(); j++) {
+        auto b2 = planets[j];
         add_acceleration(b1, b2);
       }
     }
-    // IMPORTANT: This loop must be kept separate, otherwise performance will
-    // drop substantially.
     for (auto& b1 : planets) {
       add_position_velocity(b1, t);
     }
@@ -276,10 +275,17 @@ static inline void add_acceleration(Planet* p1, Planet* p2) {
   double dz = p1->pos.z - p2->pos.z;
   double dd = dx * dx + dy * dy + dz * dz;
   double m = 1 / sqrt(dd);
-  double pre = -G * p2->mass / dd;
+  double pre;
+
+  pre = -G * p2->mass / dd;
   p1->acc.x += pre * dx * m;
   p1->acc.y += pre * dy * m;
   p1->acc.z += pre * dz * m;
+
+  pre = -G * p1->mass / dd;
+  p2->acc.x += pre * (p2->pos.x - p1->pos.x) * m;
+  p2->acc.y += pre * (p2->pos.y - p1->pos.y) * m;
+  p2->acc.z += pre * (p2->pos.z - p1->pos.z) * m;
 }
 
 
