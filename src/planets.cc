@@ -155,8 +155,9 @@ static SolarSystem* generate_solar_system(const char* ini_realpath) {
 uint64_t t;
 size_t STEP_SEC;
 size_t iter;
-SolarSystem* ssm;
-Planet* sun;
+SolarSystem* ssm = nullptr;
+Planet* sun = nullptr;
+
 void s_handler(int s) {
   printf("%c[2K\r", 27);
   t = hrtime() - t;
@@ -210,6 +211,7 @@ int main(int argc, char* argv[]) {
   }
 
   sun = ssm->get_planet("sun");
+  //sun = ssm->get_planet("jupiter");
   //printSystem(ssm, ssm->get_planet("sun"));
 
   //size_t STEP_SEC = 1;
@@ -292,7 +294,7 @@ static inline void add_acceleration(Planet* p1, Planet* p2) {
 static void printSystem(SolarSystem* ssm, Planet* sun) {
   printPlanet(sun, sun);
   for (auto p : ssm->planets) {
-    if (p->name == sun->name) continue;
+    if (sun != nullptr && p->name == sun->name) continue;
     printPlanet(p, sun);
   }
 }
@@ -310,16 +312,19 @@ static inline double mag(Coord* c1, Coord* c2) {
 
 
 static void printPlanet(Planet* p, Planet* sun) {
+  if (p == nullptr) return;
   printf("[%s]\n", p->name.c_str());
-  //printf("  [position]  x: %-14.3fy: %-14.3fz: %.3f\n",
-         //p->pos.x / AU,
-         //p->pos.y / AU,
-         //p->pos.z / AU);
+  printf("  [position]  x: %-14.3fy: %-14.3fz: %.3f\n",
+         p->pos.x / AU,
+         p->pos.y / AU,
+         p->pos.z / AU);
   //printf("  [velocity]  x: %-14gy: %-14gz: %g\n",
          //p->vel.x,
          //p->vel.y,
          //p->vel.z);
-  printf("  to sun: %-12.4f wobble: %-12.4f vel: %.1f\n",
+  if (sun == nullptr) return;
+  printf("  to %s: %-12.4f wobble: %-12.4f vel: %.1f\n",
+         sun->name.c_str(),
          mag(&p->pos, &sun->pos) / AU,
          (len(p->pos) / AU) - (mag(&p->pos, &sun->pos) / AU),
          len(p->vel));
