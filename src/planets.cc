@@ -273,19 +273,19 @@ static inline void add_acceleration(Planet* p1, Planet* p2) {
   double dx = p1->pos.x - p2->pos.x;
   double dy = p1->pos.y - p2->pos.y;
   double dz = p1->pos.z - p2->pos.z;
-  double dd = dx * dx + dy * dy + dz * dz;
-  double m = 1 / sqrt(dd);
-  double pre;
+  double rsq = dx * dx + dy * dy + dz * dz;
+  double r = 1 / sqrt(rsq);
+  double Fg;
 
-  pre = -G * p2->mass / dd;
-  p1->acc.x += pre * dx * m;
-  p1->acc.y += pre * dy * m;
-  p1->acc.z += pre * dz * m;
+  Fg = -G * p2->mass / rsq;
+  p1->acc.x += Fg * dx * r;
+  p1->acc.y += Fg * dy * r;
+  p1->acc.z += Fg * dz * r;
 
-  pre = -G * p1->mass / dd;
-  p2->acc.x += pre * (p2->pos.x - p1->pos.x) * m;
-  p2->acc.y += pre * (p2->pos.y - p1->pos.y) * m;
-  p2->acc.z += pre * (p2->pos.z - p1->pos.z) * m;
+  Fg = -G * p1->mass / rsq;
+  p2->acc.x += Fg * (p2->pos.x - p1->pos.x) * r;
+  p2->acc.y += Fg * (p2->pos.y - p1->pos.y) * r;
+  p2->acc.z += Fg * (p2->pos.z - p1->pos.z) * r;
 }
 
 
