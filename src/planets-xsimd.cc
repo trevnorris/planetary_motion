@@ -54,30 +54,27 @@ static uint64_t hrtime() {
 
 
 struct Planet {
-  Planet() = delete;
-
-  Planet(string n, double m)
-    : name(n), mass(m), pos(4, 0), vel(4, 0), acc(4, 0) {
+  Planet() : name(""), mass(0), pos(0.0), vel(0.0), acc(0.0) {
   }
 
-  Planet(string n,
-         double m,
-         vector<double> p,
-         vector<double> v,
-         vector<double> a)
-    : name(n),
-      mass(m),
-      pos(p.begin(), p.end()),
-      vel(v.begin(), v.end()),
-      acc(a.begin(), a.end()) {
+  void init(string n,
+            double m,
+            vector<double> p,
+            vector<double> v,
+            vector<double> a) {
+    name = n;
+    mass = m;
+    pos = xs::load_unaligned(p.data());
+    vel = xs::load_unaligned(v.data());
+    acc = xs::load_unaligned(a.data());
   }
 
   string name;
   double mass;
 
-  db_vector pos;
-  db_vector vel;
-  db_vector acc;
+  db_batch pos;
+  db_batch vel;
+  db_batch acc;
 };
 
 
@@ -91,7 +88,9 @@ struct SolarSystem {
   // each planet, then need to used the distance between them.
   void step(uint64_t t) {
     for (auto& b1 : planets) {
-      std::fill(b1->acc.begin(), b1->acc.end(), 0);
+      b1->acc[0] = 0;
+      b1->acc[1] = 0;
+      b1->acc[2] = 0;
     }
     for (size_t i = 0; i < planets.size(); i++) {
       auto b1 = planets[i];
@@ -148,18 +147,20 @@ vector<double> parse_coord(string name) {
 }
 
 
-Planet* gen_planet(INIReader* reader, const char* name) {
+void gen_planet(INIReader* reader, const char* name, Planet* p) {
   double mass = reader->GetReal(name, "mass", 0);
   vector<double> pos = parse_coord(reader->Get(name, "position", "0,0,0"));
   vector<double> vel = parse_coord(reader->Get(name, "velocity", "0,0,0"));
   vector<double> acc = parse_coord(reader->Get(name, "acceleration", "0,0,0"));
-  return new Planet(name, mass, pos, vel, acc);
+  p->init(name, mass, pos, vel, acc);
 }
 
 
-SolarSystem* generate_solar_system(const char* ini_realpath) {
+SolarSystem* generate_solar_system(const char* ini_realpath,
+                                   Planet (&p)[1024]) {
   INIReader reader(ini_realpath);
   vector<Planet*> planets;
+  size_t idx = 0;
 
   if (reader.ParseError() != 0) {
     fprintf(stderr, "can't load '%s'\n", ini_realpath);
@@ -167,8 +168,8 @@ SolarSystem* generate_solar_system(const char* ini_realpath) {
   }
 
   for (auto elem : reader.Sections()) {
-    planets.push_back(gen_planet(&reader, elem.c_str()));
-    gen_planet(&reader, elem.c_str());
+    gen_planet(&reader, elem.c_str(), &p[idx]);
+    planets.push_back(&p[idx++]);
   }
 
   return new SolarSystem(planets);
@@ -191,6 +192,8 @@ void s_handler(int s) {
 
 
 int main(int argc, char* argv[]) {
+  Planet planets_arr[1024];
+
   struct sigaction sigIntHandler;
   uv_fs_t ini_path_fs;
   int err;
@@ -220,7 +223,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  ssm = generate_solar_system(static_cast<char*>(ini_path_fs.ptr));
+  ssm = generate_solar_system(static_cast<char*>(ini_path_fs.ptr), planets_arr);
   uv_fs_req_cleanup(&ini_path_fs);
 
   if (ssm == nullptr) {
@@ -266,39 +269,26 @@ int main(int argc, char* argv[]) {
          1.0 * iter * STEP_SEC / 86400 / 365.256);
 
   delete options;
-  for (auto p : ssm->planets) {
-    delete p;
-  }
-  ssm->planets.clear();
   delete ssm;
   return 0;
 }
 
 
 void add_position_velocity(Planet* p1, double t) {
-  db_batch p1_pos(p1->pos.data(), xs::aligned_mode());
-  db_batch p1_vel(p1->vel.data(), xs::aligned_mode());
-  db_batch p1_acc(p1->acc.data(), xs::aligned_mode());
-
-  xs::store_aligned(p1->pos.data(), p1_pos + (p1_vel * t) + (p1_acc * t * t));
-  xs::store_aligned(p1->vel.data(), p1_vel + (p1_acc * t));
+  p1->pos = p1->pos + (p1->vel * t) + (p1->acc * t * t);
+  p1->vel = p1->vel + (p1->acc * t);
 }
 
 
 void add_acceleration(Planet* p1, Planet* p2) {
-  db_batch p1_pos(p1->pos.data(), xs::aligned_mode());
-  db_batch p1_acc(p1->acc.data(), xs::aligned_mode());
-  db_batch p2_pos(p2->pos.data(), xs::aligned_mode());
-  db_batch p2_acc(p2->acc.data(), xs::aligned_mode());
-
-  auto dd = p1_pos - p2_pos;
+  auto dd = p1->pos - p2->pos;
   auto dsq = dd * dd;
   double mx = 1 / sqrt(dsq[0] + dsq[1] + dsq[2]);
   double pre;
   pre = -G * p2->mass * mx * mx;
-  xs::store_aligned(p1->acc.data(), p1_acc + dd * pre * mx);
+  p1->acc += dd * pre * mx;
   pre = -G * p1->mass * mx * mx;
-  xs::store_aligned(p2->acc.data(), p2_acc + dd * pre * mx);
+  p2->acc += (p2->pos - p1->pos) * pre * mx;
 }
 
 
@@ -311,12 +301,12 @@ void printSystem(SolarSystem* ssm, Planet* sun) {
 }
 
 
-double len(db_vector c1) {
+double len(xs::batch<double, 4> c1) {
   return sqrt(c1[0] * c1[0] + c1[1] * c1[1] + c1[2] * c1[2]);
 }
 
 
-double mag(db_vector c1, db_vector c2) {
+double mag(xs::batch<double, 4> c1, xs::batch<double, 4> c2) {
   return sqrt(pow(c1[0] - c2[0], 2) +
               pow(c1[1] - c2[1], 2) +
               pow(c1[2] - c2[2], 2));
