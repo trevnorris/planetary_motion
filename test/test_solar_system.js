@@ -42,63 +42,39 @@ const uranus = new SystemBody('uranus',
                               new Vector(URANUS.AVG_APSIS, 0, 0),
                               new Vector(0, URANUS.AVG_SPEED, 0));
 
-const solar_system = new SolarSystem([sun, venus, earth, mars, jupiter, saturn, uranus]);
-//const solar_system = new SolarSystem([sun, earth, jupiter]);
+const ssm = new SolarSystem([sun, venus, earth, mars, jupiter, saturn, uranus]);
 
-//const log_file_fd = fs.openSync(`${__dirname}/logs/${Date.now()}.log`, 'w+');
 
-//console.log(JSON.stringify(solar_system.bodies().map(e => format_planet(e))));
-//return;
-
-//console.log(earth);
-//return;
-
-// Quarter year in seconds: 31556736
-
-solar_system.bodies().forEach(e => print_planet(e));
-console.log();
-
-const earth_pos = earth.position();
-
-let min_len = Number.MAX_SAFE_INTEGER;
-let max_len = 0;
-
-const STEP_SEC = 1;
-const YEARS = 10;
-const ITER = YEARS * 365 * 24 * 60 * 60 / STEP_SEC;
-
-//for (let i = 0; i < ITER; i += 1) {
-let iter = 0;
-const d = Date.now();
-const t = process.hrtime();
-while (Date.now() - d < (1000 * 10)) {
-  for (let i = 0; i < 500000; i++) {
-    iter++;
-    solar_system.step(STEP_SEC);
-  }
-
-  //const m = earth_pos.len();
-  //if (m > max_len) max_len = m;
-  //if (m < min_len) min_len = m;
-
-  // Only save data for every week.
-  /*
-  if (i % (24 * 60 * 60 / (STEP_SEC >>> 0) * 7) === 0) {
-    fs.writeSync(log_file_fd,
-                 JSON.stringify(solar_system.bodies().map(format_planet)) + '\n');
-  }
-  */
+function hrtime() {
+  const t = process.hrtime();
+  return t[0] * 1e9 + t[1];
 }
 
-const u = process.hrtime(t);
+ssm.bodies().forEach(e => print_planet(e));
+console.log();
 
-solar_system.bodies().forEach(e => print_planet(e));
+const STEP = 1;
+const YEARS = 1;
 
-//console.log(min_len / AU, max_len / AU);
+let iter = 0;
+let t = hrtime();
 
-//console.log(`step_sec: ${STEP_SEC}   ${((u[0] * 1e9 + u[1]) / ITER).toFixed(2)} ns/iter   ${(u[0] + u[1] / 1e9).toFixed(2)} seconds`);
-console.log(`step: ${STEP_SEC}   iter: ${iter}   ${((u[0] * 1e9 + u[1]) / iter).toFixed(2)} ns/iter   ${((u[0] + u[1] / 1e9) / 60).toFixed(2)} minutes`);
-console.log(`${(iter * STEP_SEC / 60 / 60 / 24 / 365.256).toFixed(3)} years computed`);
+for (let i = 0; i < 365.256 * 86400 * YEARS; i += STEP) {
+  if (i % 3155673 === 0) {
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${(i / (365.256 * 86400)).toFixed(1)} year(s)`);
+  }
+  iter++;
+  ssm.step(STEP);
+}
+
+t = hrtime() - t;
+
+ssm.bodies().forEach(e => print_planet(e));
+
+
+console.log(`step: ${STEP}   iter: ${iter}   ${(t / iter).toFixed(2)} ns/iter   ${(t / 1e9 / 60).toFixed(2)} minutes`);
+console.log(`${(iter * STEP / 60 / 60 / 24 / 365.256).toFixed(3)} years computed`);
 
 
 function print_planet(p) {
@@ -108,7 +84,6 @@ function print_planet(p) {
   console.log(p.name);
   console.log(`  [position]     x: ${(pos.x/AU).toFixed(3)}\ty: ${(pos.y/AU).toFixed(3)}\tmag: ${(pos.len()/AU).toFixed(3)}`);
   console.log(`  [velocity]     x: ${vel.x.toFixed(3)}\ty: ${vel.y.toFixed(3)}\tsun: ${(pos.mag(sun.position())/AU).toFixed(3)}`);
-  //console.log(`  [acceleration] x: ${acc.x.toExponential(3).replace('+','')}\ty: ${acc.y.toExponential(3).replace('+','')}`);
 }
 
 function format_planet(p) {
@@ -117,7 +92,6 @@ function format_planet(p) {
   const acc = p.acceleration();
   return {
     name: p.name,
-    //mass: p.mass,
     pos: { x: pos.x, y: pos.y, z: pos.z },
     vel: { x: vel.x, y: vel.y, z: vel.z },
     accel: { x: acc.x, y: acc.y, z: acc.z },
