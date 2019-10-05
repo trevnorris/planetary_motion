@@ -100,13 +100,13 @@ const ssm = new SolarSystem();
 
 ssm.set_sun(sun)
    .add_body(mercury)
-   .add_body(venus)
-   .add_body(earth)
-   .add_body(mars)
-   .add_body(jupiter)
-   .add_body(saturn)
-   .add_body(uranus)
-   .add_body(neptune);
+   //.add_body(venus)
+   //.add_body(earth)
+   //.add_body(mars)
+   //.add_body(jupiter)
+   //.add_body(saturn)
+   //.add_body(uranus)
+   //.add_body(neptune);
 
 
 ssm.init();
@@ -119,23 +119,20 @@ function hrtime() {
   return t[0] * 1e9 + t[1];
 }
 
-const YEARS = 10;
-const STEP = 1;
+const YEARS = 1000;
+const STEP = 0.1;
 const TOTAL_TIME = YEAR_SEC * YEARS;
 const SEG_PER = (STEP * 3155693) / TOTAL_TIME;
 let iter = 0;
 let t = hrtime();
-let last = t;
 
 for (let i = 0; i < TOTAL_TIME; i += STEP) {
-  if ((i / STEP) % 3155693 < 1) {
-    const u = hrtime();
-    const s = (u - last) / 1e9;
-    last = u;
-    const est = (s / SEG_PER) * (1 - (i * STEP) / TOTAL_TIME);
+  if (i % (YEAR_SEC / 10) < 1) {
+    const u = (hrtime() - t) / 1e9;
+    const est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
     process.stdout.cursorTo(0);
     process.stdout.clearLine();
-    process.stdout.write(`${(i * STEP / YEAR_SEC).toFixed(1)} year(s) calculated`);
+    process.stdout.write(`${(i / YEAR_SEC).toFixed(1)} year(s) calculated`);
     if (Number.isFinite(est)) {
       process.stdout.write(`   ${sec_to_string(est)} remaining`);
     }
@@ -156,7 +153,7 @@ console.log(`${(iter * STEP / YEAR_SEC).toFixed(3)} years computed`);
 
 /* debug:start */
 function fxd(n, m) {
-  return n.toFixed(m || 7)
+  return n.toFixed(m || 12)
 }
 /* debug:stop */
 
@@ -167,17 +164,22 @@ function orbital_period(p) {
 function print_planet_init(p) {
   const vel = p.velocity();
   console.log(p.name);
-  console.log(`  velocity: ${fxd(vel.len(), 2)} m/s  \tperiod: ${fxd(orbital_period(p) / YEAR_SEC, 4)} years`);
+  console.log(`  velocity: ${fxd(vel.len(), 2)} m/s  \tperiod: ${fxd(orbital_period(p) / YEAR_SEC, 4)} years  \tmag: ${fxd(sun.position().mag(p.position()) / AU)}`);
 }
 
 function print_planet(p) {
   const pos = p.position();
   const vel = p.velocity();
   const acc = p.acceleration();
+  const lac = p._last_alphelion_coord;
+  const lpc = p._last_perihelion_coord;
   console.log(p.name);
-  console.log(`  [position]     x: ${fxd(pos.x / AU)}\ty: ${fxd(pos.y / AU)}\tz: ${fxd(pos.z / AU)}\tmag: ${fxd(pos.mag(sun.velocity()) / AU)}`);
+  console.log(`  [position]     x: ${fxd(pos.x / AU)}   y: ${fxd(pos.y / AU)}   z: ${fxd(pos.z / AU)}   mag: ${fxd(pos.mag(sun.velocity()) / AU)}`);
   console.log(`  [velocity]     x: ${fxd(vel.x, 2)}\ty: ${fxd(vel.y, 2)}\tz: ${fxd(vel.z, 2)}\tvel: ${fxd(vel.len(), 1)} m/s`);
+  console.log(`  [alphelion]   ${fxd(p._last_alphelion / AU)}\tx: ${fxd(lac.x / AU)}\ty: ${fxd(lac.y / AU)}\tz: ${fxd(lac.z / AU)}`);
+  console.log(`  [perihelion]  ${fxd(p._last_perihelion / AU)}\tx: ${fxd(lpc.x / AU)}\ty: ${fxd(lpc.y / AU)}\tz: ${fxd(lpc.z / AU)}`);
 /* debug:start */
+  //console.log(fxd(p.mag() / AU));
   //console.log(`  [incline]      min: ${fxd((Math.asin(p.min_z / pos.len()) * 180 / Math.PI) || 0)}°\tmax: ${fxd((Math.asin(p.max_z / pos.len()) * 180 / Math.PI) || 0)}°`);
   //console.log(`  [apsis]        min: ${fxd(p.min_a / AU)}\tmax: ${fxd(p.max_a / AU)}\te: ${fxd(1-2/(p.max_a/p.min_a+1), 4)}`);
 /* debug:stop */
