@@ -251,26 +251,30 @@ int main(int argc, char* argv[]) {
   sigaction(SIGINT, &sigIntHandler, nullptr);
   */
 
-  Planet sun("sun", 1.9885e30, 696342000);
-  Planet mercury("mercury",
-                 3.3011e23,
-                 6.3472876,
-                 57909175678.24835,
-                 0.20563069,
-                 2439700);
-  Planet jupiter("jupiter",
-                 1.8982e27,
-                 0.3219657,
-                 778412026775.1428,
-                 0.04839266,
-                 71492000);
+  Planet sun("sun",         1.9885e30,  696342000);
+  Planet mercury("mercury", 3.3011e23,  6.3472876, 57909175678.24835,  0.20563069, 2439700);
+  Planet venus("venus",     4.8675e24,  2.1545480, 108208925513.1937,  0.00677323, 6051800);
+  Planet earth("earth",     5.97237e24, 1.5717062, 149597887155.76578, 0.01671022, 6378137);
+  Planet mars("mars",       6.4171e23,  1.6311871, 227936637241.84332, 0.09341233, 3396200);
+  Planet jupiter("jupiter", 1.8982e27,  0.3219657, 778412026775.1428,  0.04839266, 71492000);
+  Planet saturn("saturn",   5.6834e26,  0.9254848, 1426725412588.1675, 0.05415060, 60268000);
+  Planet uranus("uranus",   8.6810e25,  0.9946743, 2870972219969.714,  0.04716771, 25559000);
+  Planet neptune("neptune", 1.02413e26, 0.7354109, 4498252910764.0625, 0.00858587, 24764000);
+
   SolarSystem ssm;
   ssm.add_sun(&sun);
   ssm.add_planet(&mercury);
+  ssm.add_planet(&venus);
+  ssm.add_planet(&earth);
+  ssm.add_planet(&mars);
   ssm.add_planet(&jupiter);
+  ssm.add_planet(&saturn);
+  ssm.add_planet(&uranus);
+  ssm.add_planet(&neptune);
   ssm.init();
 
-  double YEARS = 1;
+  double YEAR_SEC = 365.2422 * 86400;
+  double YEARS = 10;
   double TOTAL_TIME = YEARS * 365.2422 * 86400;
   STEP_SEC = 1;
   iter = 0;
@@ -281,11 +285,21 @@ int main(int argc, char* argv[]) {
   t = hrtime();
 
   for (double i = 0; i < TOTAL_TIME; i += STEP_SEC) {
+    if ((size_t)i % (size_t)(YEAR_SEC / 10 * STEP_SEC) < 1) {
+      double u = (hrtime() - t) / 1e9;
+      double est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
+      printf("\r%c[2K", 27);
+      printf("%.2f year(s) calculated   %.4f remaining",
+             i / YEAR_SEC,
+             est);
+      fflush(stdout);
+    }
     iter++;
     ssm.step(STEP_SEC);
   }
 
   t = hrtime() - t;
+  printf("\r%c[2K", 27);
   printSystem(&ssm, &sun);
   printf("step: %.2f    iter: %lu   %.2f ns/iter   %.2f minutes\n",
          STEP_SEC,
@@ -297,3 +311,16 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
+
+/*
+  if (i % (YEAR_SEC / 10 * STEP) < 1) {
+    const u = (hrtime() - t) / 1e9;
+    const est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
+    process.stdout.cursorTo(0);
+    process.stdout.clearLine();
+    process.stdout.write(`${(i / YEAR_SEC).toFixed(1)} year(s) calculated`);
+    if (Number.isFinite(est)) {
+      process.stdout.write(`   ${sec_to_string(est)} remaining`);
+    }
+  }
+*/

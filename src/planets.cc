@@ -67,6 +67,8 @@ struct SolarSystem {
   SolarSystem() { }
   SolarSystem(vector<Planet*> p) : planets(p) { }
   vector<Planet*> planets;
+  // TODO: Implement collision detection. To do this will need the radius of
+  // each planet, then need to used the distance between them.
   void step(uint64_t t) {
     for (auto& b1 : planets) {
       b1->acc = { 0, 0, 0 };
@@ -276,18 +278,25 @@ static inline void add_acceleration(Planet* p1, Planet* p2) {
   double dy = p1->pos.y - p2->pos.y;
   double dz = p1->pos.z - p2->pos.z;
   double rsq = dx * dx + dy * dy + dz * dz;
-  double r = 1 / sqrt(rsq);
+  double r = 0;
   double Fg;
 
   Fg = -G * p2->mass / rsq;
-  p1->acc.x += Fg * dx * r;
-  p1->acc.y += Fg * dy * r;
-  p1->acc.z += Fg * dz * r;
+  if (Fg < -1e-8) {
+    r = 1 / sqrt(rsq);
+    p1->acc.x += Fg * dx * r;
+    p1->acc.y += Fg * dy * r;
+    p1->acc.z += Fg * dz * r;
+  }
 
   Fg = -G * p1->mass / rsq;
-  p2->acc.x += Fg * (p2->pos.x - p1->pos.x) * r;
-  p2->acc.y += Fg * (p2->pos.y - p1->pos.y) * r;
-  p2->acc.z += Fg * (p2->pos.z - p1->pos.z) * r;
+  if (Fg < -1e-8) {
+    if (r == 0)
+      r = 1 / sqrt(rsq);
+    p2->acc.x += Fg * (p2->pos.x - p1->pos.x) * r;
+    p2->acc.y += Fg * (p2->pos.y - p1->pos.y) * r;
+    p2->acc.z += Fg * (p2->pos.z - p1->pos.z) * r;
+  }
 }
 
 
