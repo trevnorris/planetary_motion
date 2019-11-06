@@ -89,12 +89,16 @@ class Vector {
   inline Vector div(Vector* v) const { return div(*v); }
 
   friend Vector operator+(const Vector& u, double n) { return u.add(n); }
+  friend Vector operator+(double n, const Vector& u) { return u.add(n); }
   friend Vector operator+(const Vector& u, const Vector& v) { return u.add(v); }
   friend Vector operator-(const Vector& u, double n) { return u.sub(n); }
+  friend Vector operator-(double n, const Vector& u) { return u.sub(n); }
   friend Vector operator-(const Vector& u, const Vector& v) { return u.sub(v); }
   friend Vector operator*(const Vector& u, double n) { return u.mul(n); }
+  friend Vector operator*(double n, const Vector& u) { return u.mul(n); }
   friend Vector operator*(const Vector& u, const Vector& v) { return u.mul(v); }
   friend Vector operator/(const Vector& u, double n) { return u.div(n); }
+  friend Vector operator/(double n, const Vector& u) { return u.div(n); }
   friend Vector operator/(const Vector& u, const Vector& v) { return u.div(v); }
 
   Vector& operator=(const Vector& u) {
