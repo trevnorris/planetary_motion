@@ -23,25 +23,27 @@ class SystemBody {
   }
 
   // Set one SystemBody in the orbit of another. The initial position and
-  // velocity will be set based on the location of the orbited body.
-  // TODO(trevnorris): Allow customization of the angle of perihelion and the
-  // lowest point in the inclination?
+  // velocity will be set based on the location of the orbited body. The
+  // aphelion_angle (in degrees) is calculated at x = aphelion, y = 0 in a
+  // clockwise motion.
   inline void add_satellite(SystemBody* sb,
                             double semi_major,
                             double eccentricity,
-                            double inclination) {
+                            double inclination,
+                            // The angle around the orbit where the aphelion
+                            // location lies.
+                            double periapsis_arg,
+                            double inclination angle) {
     if (sb == this) { return; }
+    if (sb->orbiting_ != nullptr) { sb->remove_satellite(sb); }
 
     sb->semi_major_ = semi_major;
     sb->eccentricity_ = eccentricity;
     sb->inclination_ = inclination;
     sb->aphelion_ = semi_major * (1 + eccentricity);
     sb->perihelion_ = semi_major * (1 - eccentricity);
-
-    if (sb->orbiting_ != nullptr) {
-      sb->remove_satellite(sb);
-    }
     sb->orbiting_ = this;
+    sb->periapsis_arg_ = periapsis_arg;
     satellites_.push_back(sb);
     for (auto& p : satellites_) {
       p->update_orbit();
@@ -55,41 +57,76 @@ class SystemBody {
   }
 
   // Step in time t seconds forward and calculate the gravity for all sbs.
-  inline void add_acceleration(std::vector<SystemBody*> sbs, double t) {
-    for (auto& sb : sbs) {
-      sb->acc_->zero();
-    }
+  inline void calc_acceleration(std::vector<SystemBody*> sbs, double t) {
+    acc_.zero();
     for (auto& sb : sbs) {
       if (sb == this) continue;
+      double rsq = pos_.mag_sq(sb->pos_);
+      double r = std::sqrt(rsq);
+      double Fg = -G * sb->mass() / rsq;
+      acc_ += Fg * (pos_ - sb->pos_) / r;
     }
+  }
+
+  inline void update_pos(double t) {
+    pos_ += t* vel_+ t * t * 0.5 * acc_;
+    vel_ += acc_ * t;
   }
 
   inline std::string name() const { return name_; }
   inline double mass() const { return mass_; }
   inline double radius() const { return radius_; }
-  inline Vector position() const { return pos_; }
-  inline Vector velocity() const { return vel_; }
-  inline Vector acceleration() const { return acc_; }
+  inline double aphelion() const { return aphelion_; }
+  inline double perihelion() const { return perihelion_; }
+  inline Vector pos() const { return pos_; }
+  inline Vector vel() const { return vel_; }
+  inline Vector acc() const { return acc_; }
   inline SystemBody* orbiting() const { return orbiting_; }
 
  private:
+  // Rotate main point by t degrees.
+  static inline double rotate_main(a, b, t) {
+    return a * std::cos(t * PI / 180) - b * std::sin(t * PI / 180);
+  }
+  // Rotate secondary point by t degrees
+  static inline double rotate_second(a, b, t) {
+    return a * std::sin(t * PI / 180) + b * std::cos(t * PI / 180);
+  }
+
+  // TODO(trevnorris): This doesn't update the initial velocities for all
+  // bodies in the system. Only the orbiting body.
+  // TODO(trevnorris): Add the angle at which the low/high/etc. point of the
+  // inclination reaches a certain point.
   inline void update_orbit() {
     if (orbiting() != nullptr) {
-      pos_.set(orbiting_->aphelion_ + aphelion_, 0, 0);
+      // Rotate position vector to the point in orbit around the aphelion.
+      //double px = rotate_main(aphelion_, 0, aphelion_angle_);
+      //double py = rotate_second(aphelion_, 0, aphelion_angle_);
+      //pos.set(px, py, 0);
+
+      // First rotate vector to position the aphelion.
+      //double x = rotate_main(aphelion_, 0, aphelion_angle_);
+      //double y = rotate_second(aphelion_, 0, aphelion_angle_);
+      //double z = 0;
+      // Then rotate 
+      /*
+      double x = aphelion_ * std::cos(aphelion_angle_ * PI / 180);
+      double y = aphelion_ * std::sin(aphelion_angle_ * PI / 180);
+      // TODO(trevnorris): Where'd I leave off?
+      double
+      //pos_.set(orbiting()->aphelion_ + aphelion_, 0, 0);
+      //pos_.set(
       double bv = std::sqrt(
-          G * orbiting_->mass() * (2 / aphelion_ - 1 / semi_major_));
-      vel_.set(bv * std::acos(inclination_ * PI / 180),
-               -bv * std::sin(inclination_ * PI / 180),
-               0);
+          G * orbiting()->mass() * (2 / aphelion_ - 1 / semi_major_));
+      vel_.set(0,
+               bv * std::cos(inclination_ * PI / 180),
+               -bv * std::sin(inclination_ * PI / 180));
+               */
     }
 
     for (auto& p : satellites_) {
       p->update_orbit();
     }
-  }
-  inline void add_velocity(double t) {
-    pos_ += vel_ * t + acc_ * t * t;
-    vel_ += acc_ * t;
   }
 
   std::string name_;
@@ -100,6 +137,7 @@ class SystemBody {
   double inclination_ = 0;
   double aphelion_ = 0;
   double perihelion_ = 0;
+  double periapsis_arg_ = 0;
   Vector pos_;
   Vector vel_;
   Vector acc_;

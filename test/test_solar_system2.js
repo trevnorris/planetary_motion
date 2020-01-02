@@ -118,8 +118,8 @@ const neptune = new SystemBody({
 const ssm = new SolarSystem();
 
 ssm.set_sun(sun)
-   //.add_body(mercury)
-   //.add_body(venus)
+   .add_body(mercury)
+   .add_body(venus)
    .add_body(earth)
    //.add_body(mars)
    //.add_body(jupiter)
@@ -128,7 +128,7 @@ ssm.set_sun(sun)
    //.add_body(neptune);
 
 
-ssm.init();
+//ssm.init();
 
 //ssm.bodies().forEach(e => print_planet_init(e));
 ssm.bodies().forEach(e => print_planet(e));

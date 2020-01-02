@@ -1,8 +1,8 @@
+#include "utils.h"
 #include "vector-math.h"
 
 #include <signal.h>
 
-#include <chrono>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -14,16 +14,6 @@ using std::stod;
 using std::string;
 using std::stringstream;
 using std::vector;
-
-#define G 6.67408e-11
-#define AU 149597870700
-#define PI 3.141592653589793
-
-
-static uint64_t hrtime() {
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::steady_clock::now().time_since_epoch()).count();
-}
 
 
 struct IniCon {
@@ -260,21 +250,23 @@ int main(int argc, char* argv[]) {
   Planet saturn("saturn",   5.6834e26,  0.9254848, 1426725412588.1675, 0.05415060, 60268000);
   Planet uranus("uranus",   8.6810e25,  0.9946743, 2870972219969.714,  0.04716771, 25559000);
   Planet neptune("neptune", 1.02413e26, 0.7354109, 4498252910764.0625, 0.00858587, 24764000);
+  Planet pluto("pluto", 1.303e22, 15.55, 5906376272436.361, 0.24880766, 606000);
 
   SolarSystem ssm;
   ssm.add_sun(&sun);
-  ssm.add_planet(&mercury);
-  ssm.add_planet(&venus);
+  //ssm.add_planet(&mercury);
+  //ssm.add_planet(&venus);
   ssm.add_planet(&earth);
-  ssm.add_planet(&mars);
+  //ssm.add_planet(&mars);
   ssm.add_planet(&jupiter);
-  ssm.add_planet(&saturn);
-  ssm.add_planet(&uranus);
-  ssm.add_planet(&neptune);
+  //ssm.add_planet(&saturn);
+  //ssm.add_planet(&uranus);
+  //ssm.add_planet(&neptune);
+  //ssm.add_planet(&pluto);
   ssm.init();
 
   double YEAR_SEC = 365.2422 * 86400;
-  double YEARS = 10;
+  double YEARS = 1;
   double TOTAL_TIME = YEARS * 365.2422 * 86400;
   STEP_SEC = 1;
   iter = 0;

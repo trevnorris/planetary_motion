@@ -2,7 +2,7 @@
 
 const { openSync, closeSync, readSync, readFileSync, statSync, writeFileSync } = require('fs');
 const { createCanvas, loadImage } = require('canvas');
-const canvas = createCanvas(5000, 5000);
+const canvas = createCanvas(1000, 1000);
 const ctx = canvas.getContext('2d');
 
 //const coords = readFileSync('/tmp/planet-positions-out.txt').toString().trim().split('\n').map(e => JSON.parse(e));
@@ -16,7 +16,8 @@ const saturn = new Float64Array(readFileSync('/tmp/saturn-positions.bin').buffer
 const uranus = new Float64Array(readFileSync('/tmp/uranus-positions.bin').buffer);
 */
 
-const planet_list = [/*'saturn', */'jupiter',/* mars*/'earth', 'venus', 'mercury'];
+//const planet_list = [/*'saturn', */'jupiter', 'mars', 'earth', 'venus', 'mercury'];
+const planet_list = ['earth', 'venus', 'mercury'];
 let max_val = 0;
 
 /*
@@ -91,7 +92,9 @@ let iter = 0;
   ctx.beginPath();
     for (let i = 0; i < value.length && --max > 0; i += 3) {
       ctx.strokeStyle = colors[iter++ % NSHADES];
-      ctx.lineTo(...transform_coord(value[i], value[i + 1]));
+      //ctx.lineWidth = 2;
+      //ctx.lineTo(...transform_coord(value[i], value[i + 1]));
+      ctx.lineTo(...transform_coord(value[i + 1], value[i + 2]));
     }
   ctx.stroke();
   }
@@ -102,7 +105,7 @@ let iter = 0;
 ctx.fillStyle = 'black';
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-max_val = 5;
+max_val = 1.1;
 
 planet_list.forEach(e => {
   draw_orbit_bin(`/tmp/${e}-positions.bin`, ctx);
@@ -124,7 +127,7 @@ ctx.fillStyle = '#F1C40F';
 ctx.moveTo(canvas.width / 2 + 10, canvas.height / 2);
 ctx.arc(canvas.width / 2, canvas.width / 2, 10, 0, Math.PI * 2, false);
 ctx.fill();
-*/
+/* */
 
 /*
   ctx.beginPath();

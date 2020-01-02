@@ -18,6 +18,15 @@ class Vector {
   inline void y(double n) { coords_[1] = n; }
   inline void z(double n) { coords_[2] = n; }
 
+  inline void set(double x_, double y_, double z_) {
+    coords_[0] = x_;
+    coords_[1] = y_;
+    coords_[2] = z_;
+  }
+  inline void set(const Vector& v) { set(v.x(), v.y(), v.z()); }
+  inline void set(Vector* v) { set(v->x(), v->y(), v->z()); }
+  inline void zero() { set(0, 0, 0); }
+
   inline double len_sq() const { return x() * x() + y() * y() + z() * z(); }
   inline double len() const { return std::sqrt(len_sq()); }
 
@@ -46,15 +55,6 @@ class Vector {
     return angle_rad(v) * 180 / 3.141592653589793;
   }
   inline double angle_deg(Vector* v) const { return angle_deg(*v); }
-
-  inline void set(double x_, double y_, double z_) {
-    coords_[0] = x_;
-    coords_[1] = y_;
-    coords_[2] = z_;
-  }
-  inline void set(const Vector& v) { set(v.x(), v.y(), v.z()); }
-  inline void set(Vector* v) { set(v->x(), v->y(), v->z()); }
-  inline void zero() { set(0, 0, 0); }
 
   inline Vector add(double n) const {
     return Vector(x() + n, y() + n, z() + n);

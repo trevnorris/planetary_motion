@@ -13,6 +13,10 @@ class Vector {
     _x = x; _y = y; _z = z;
   }
 
+  inline void zero() {
+    reset();
+  }
+
   inline void reset() {
     set(0, 0, 0);
   }
