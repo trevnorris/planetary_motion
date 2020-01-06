@@ -9,10 +9,12 @@
 #include <vector>
 
 using ssm::Vector;
+using std::atomic;
 using std::string;
 using std::vector;
+using std::thread;
 
-class SystemThread;
+struct SystemThread;
 class SystemBody;
 class System;
 
@@ -23,13 +25,12 @@ static void kep2cart(double M, double a, double e, double i, double w,
 static void print_planet(SystemBody* p);
 static void print_system(System* s);
 
-// TODO everything
-class SystemThread {
- public:
-  bool is_busy() { return busy_; }
 
- private:
-  std::atomic<bool> busy_;
+// TODO everything
+struct SystemThread {
+  atomic<int> run_state;
+  SystemBody* body;
+  thread* t;
 };
 
 
@@ -67,6 +68,14 @@ class SystemBody {
   void update_acceleration(vector<SystemBody*>& bodies);
   void update_position_velocity(double t);
 
+  /* 0 - thread control
+   * 1 - thread hand off
+   * 2 - main control
+   * 3 - main hand off
+   */
+  atomic<int> run_state;
+  thread* t;
+
  private:
   friend class System;
 
@@ -90,11 +99,6 @@ class SystemBody {
   Vector pos_ = { 0, 0, 0 };
   Vector vel_ = { 0, 0, 0 };
   Vector acc_ = { 0, 0, 0 };
-  // Since not each body will have its own thread, this will need to be moved
-  // elsewhere.
-  // TODO Probably need to create a class specifically to house each thread's
-  // set of bodies.
-  //std::atomic<bool> acc_busy_;
 };
 
 
@@ -107,8 +111,13 @@ class System {
   // Thread-safe to read since there will be no additional writers.
   vector<SystemBody*>& bodies();
 
+  // Run system using step seconds, for dur steps, using threads.
+  uint64_t run(double step, size_t dur);
+  uint64_t run_threaded(double step, size_t dur);
+
  private:
   vector<SystemBody*> bodies_ = {};
+  vector<thread*> threads_ = {};
 };
 
 
@@ -214,6 +223,81 @@ vector<SystemBody*>& System::bodies() {
 }
 
 
+uint64_t System::run(double step, size_t iter) {
+  auto t = hrtime();
+  for (size_t i = 0; i < iter; i++) {
+    for (auto& sb : bodies_) {
+      sb->update_acceleration(bodies_);
+    }
+    for (auto& sb : bodies_) {
+      sb->update_position_velocity(step);
+    }
+  }
+  return hrtime() - t;
+}
+
+
+// TODO(trevnorris): Being lazy. fix this.
+std::atomic<size_t> run_dur;
+
+static void run_body(SystemThread* st) {
+  //auto& bodies(body->system()->bodies());
+  //auto* body = st->body;
+  st->run_state = 1;
+  for (size_t i = run_dur.load(); i > 0; i--) {
+    while (st->run_state != 3);
+    st->run_state = 0;
+    //body->update_acceleration(bodies);
+    st->run_state = 1;
+  }
+}
+
+// TODO(trevnorris): This is slow, so very very slow.
+uint64_t System::run_threaded(double step, size_t dur) {
+  vector<SystemThread*> st;
+  run_dur = dur;
+
+  for (auto& body : bodies_) {
+    auto* s = new SystemThread();
+    s->run_state = 0;
+    s->body = body;
+    s->t = new thread(run_body, s);
+    st.push_back(s);
+  }
+
+  for (auto& s : st) {
+    while (s->run_state != 1);
+  }
+  for (auto& s : st) {
+    s->run_state = 3;
+  }
+
+  auto t = hrtime();
+  for(; dur > 0; dur--) {
+    for (auto& s : st) {
+      while (s->run_state != 1);
+      s->run_state = 2;
+    }
+    //for (auto& body : bodies_) {
+      //body->update_position_velocity(step);
+    //}
+    for (auto& s : st) {
+      s->run_state = 3;
+    }
+  }
+  t = hrtime() - t;
+
+  for (auto& s : st) {
+    s->t->join();
+    delete s->t;
+    delete s;
+  }
+  st.clear();
+
+  return t;
+}
+
+
 int main() {
   System ssm;
   SystemBody sun("sun", 1.9885e30, 696342000, 0, 0, 0, 0, 0, 0);
@@ -242,30 +326,22 @@ int main() {
 
   ssm.add_body(&sun);
   ssm.add_body(&mercury);
-  ssm.add_body(&venus);
-  ssm.add_body(&earth);
-  //ssm.add_body(&moon);
-  ssm.add_body(&mars);
-  ssm.add_body(&jupiter);
-  ssm.add_body(&saturn);
-  ssm.add_body(&uranus);
-  ssm.add_body(&neptune);
-  ssm.add_body(&pluto);
+  //ssm.add_body(&venus);
+  //ssm.add_body(&earth);
+  //ssm.add_body(&mars);
+  //ssm.add_body(&jupiter);
+  //ssm.add_body(&saturn);
+  //ssm.add_body(&uranus);
+  //ssm.add_body(&neptune);
+  //ssm.add_body(&pluto);
 
-  print_system(&ssm);
+  //print_system(&ssm);
 
-  constexpr size_t iter = 86400*365.2422*3;//315569260;  // 100 years
+  constexpr size_t iter = 1000000;//86400*365.2422;//315569260;  // 100 years
   constexpr double step = 1;
-  auto t = hrtime();
-  for (size_t i = 0; i < iter; i++) {
-    for (auto& sb : ssm.bodies()) {
-      sb->update_acceleration(ssm.bodies());
-    }
-    for (auto& sb : ssm.bodies()) {
-      sb->update_position_velocity(step);
-    }
-  }
-  t = hrtime() - t;
+
+  //auto t = ssm.run(step, iter);
+  auto t = ssm.run_threaded(step, iter);
 
   printf("\n");
   print_system(&ssm);
