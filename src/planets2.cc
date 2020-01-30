@@ -131,6 +131,8 @@ SystemBody::SystemBody(string name,
       w_(w),
       Om_(Om),
       E_(E) {
+      //E_(E),
+      //r_concern_(G * mass / 1e-9) {
 }
 
 constexpr string& SystemBody::name() { return name_; }
@@ -182,7 +184,10 @@ void SystemBody::update_acceleration(const vector<SystemBody*>& bodies) {
       continue;
     auto& p = body->pos();
     double rsq = pos_.mag_sq(&p);
-    //if (rsq < r_concern_)
+    // TODO(trevnorris): Track the mag of acceleration from all bodies, and
+    // if this is below a given % then skip the calc. but how can I do this
+    // w/o needing to do the calc to begin with?
+    //if (rsq > r_concern_)
       //continue;
     acc_ += -G * body->mass() / (rsq * sqrt(rsq)) * (pos_ - p);
   }
@@ -219,24 +224,34 @@ int main(int argc, char* argv[]) {
   SystemBody mercury("mercury", 3.3011e23,  2439700,  57909175678.24835,  0.20563069, 6.3472876, 77.45645,  48.33167,  0);
   SystemBody venus("venus",     4.8675e24,  6051800,  108208925513.1937,  0.00677323, 2.1545480, 131.53298, 76.68069,  0);
   SystemBody earth("earth",     5.97237e24, 6378137,  149597887155.76578, 0.01671022, 1.5717062, 102.94719, -11.26064, 0);
-  //SystemBody moon("moon", 7.34767309e22, 1737100, 384400000, 0.0549, 5.145, 0, 0, 0);
   SystemBody mars("mars",       6.4171e23,  3396200,  227936637241.84332, 0.09341233, 1.6311871, 336.04084, 49.57854,  0);
   SystemBody jupiter("jupiter", 1.8982e27,  71492000, 778412026775.1428,  0.04839266, 0.3219657, 14.75385,  100.55615, 0);
   SystemBody saturn("saturn",   5.6834e26,  60268000, 1426725412588.1675, 0.05415060, 0.9254848, 92.43194,  113.71504, 0);
   SystemBody uranus("uranus",   8.6810e25,  25559000, 2870972219969.714,  0.04716771, 0.9946743, 170.96424, 74.22988,  0);
   SystemBody neptune("neptune", 1.02413e26, 24764000, 4498252910764.0625, 0.00858587, 0.7354109, 44.97135,  131.72169, 0);
   SystemBody pluto("pluto",     1.309e22,   1188300,  5906376272436.361,  0.24880766, 17.14175,  224.06676, 110.30347, 0);
+  SystemBody makemake("makemake", 3.1e21,   739000,   6815828586962.7,    0.15804,    28.98030,  295.0896,  79.6459,   0);
+  SystemBody eris("eris",       1.66e22,    1163000,  10133759761218,     0.43883,    44.1444,   151.687,   35.9045,   0);
+  SystemBody quaoar("quaoar",   1.4e21,     560500,   6536230166624.4,    0.03956,    7.9881,    146.462,   188.837,   0);
+  SystemBody varuna("varuna",   1.55e20,    339000,   6399946506416.7,    0.05413,    17.220,    262.875,   97.369,    0);
+
+  //SystemBody moon("moon", 7.34767309e22, 1737100, 384400000, 0.0549, 5.145, 0, 0, 0);
 
   mercury.set_orbit(&sun);
   venus.set_orbit(&sun);
   earth.set_orbit(&sun);
-  //moon.set_orbit(&earth);
   mars.set_orbit(&sun);
   jupiter.set_orbit(&sun);
   saturn.set_orbit(&sun);
   uranus.set_orbit(&sun);
   neptune.set_orbit(&sun);
   pluto.set_orbit(&sun);
+  makemake.set_orbit(&sun);
+  eris.set_orbit(&sun);
+  quaoar.set_orbit(&sun);
+  varuna.set_orbit(&sun);
+
+  //moon.set_orbit(&earth);
 
   ssm.add_body(&sun);
   ssm.add_body(&mercury);
@@ -248,6 +263,10 @@ int main(int argc, char* argv[]) {
   ssm.add_body(&uranus);
   ssm.add_body(&neptune);
   ssm.add_body(&pluto);
+  ssm.add_body(&makemake);
+  ssm.add_body(&eris);
+  ssm.add_body(&quaoar);
+  ssm.add_body(&varuna);
 
   double YEAR_SEC = 365.2422 * 86400;
   double YEARS = 1;
