@@ -11,9 +11,9 @@ class Vector {
   Vector(const Vector& v) : coords_{v.x(), v.y(), v.z()} { }
   Vector(double x, double y, double z) : coords_{x, y, z} { }
 
-  inline double x() const { return coords_[0]; }
-  inline double y() const { return coords_[1]; }
-  inline double z() const { return coords_[2]; }
+  constexpr inline double x() const { return coords_[0]; }
+  constexpr inline double y() const { return coords_[1]; }
+  constexpr inline double z() const { return coords_[2]; }
   inline void x(double n) { coords_[0] = n; }
   inline void y(double n) { coords_[1] = n; }
   inline void z(double n) { coords_[2] = n; }
@@ -27,7 +27,9 @@ class Vector {
   inline void set(Vector* v) { set(v->x(), v->y(), v->z()); }
   inline void zero() { set(0, 0, 0); }
 
-  inline double len_sq() const { return x() * x() + y() * y() + z() * z(); }
+  constexpr inline double len_sq() const {
+    return x() * x() + y() * y() + z() * z();
+  }
   inline double len() const { return std::sqrt(len_sq()); }
 
   inline double mag_sq(const Vector& v) const {
@@ -41,10 +43,10 @@ class Vector {
   }
   inline double mag(Vector* v) const { return mag(*v); }
 
-  inline double dot(const Vector& v) const {
+  constexpr inline double dot(const Vector& v) const {
     return x() * v.x() + y() * v.y() + z() * v.z();
   }
-  inline double dot(Vector* v) const { return dot(*v); }
+  constexpr inline double dot(Vector* v) const { return dot(*v); }
 
   inline double angle_rad(const Vector& v) const {
     return std::acos(dot(v) / (len() * v.len()));
