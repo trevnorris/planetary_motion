@@ -1,187 +1,366 @@
 #include "utils.h"
-#include "vector-math.h"
+#include "math_vector.h"
 
-#include <signal.h>
-
+#include <atomic>
+#include <algorithm>
 #include <cmath>
 #include <string>
+#include <thread>
 #include <vector>
+
 #include <sstream>
 
+using ssm::Vector;
+using std::atomic;
 using std::pow;
 using std::sqrt;
 using std::stod;
 using std::string;
 using std::stringstream;
+using std::thread;
 using std::vector;
 
+class ProcessingThread;
+class SystemBody;
+class System;
 
-struct IniCon {
-  double inclination;
-  double semi_major;
-  double eccentricity;
-  double aphelion;
-  double perihelion;
+//static void print_vector(Vector* v);
+static double d2r(double d);
+static void kep2cart(double M, double a, double e, double i, double w,
+                     double Om, double E, Vector& pos, Vector& acc);
+static void print_body(SystemBody* p);
+static void print_system(System* s);
+
+
+class SystemBody {
+ public:
+  SystemBody() { }
+  // TODO Upon creation determine the ||r||^2 value using the body's mass at
+  // which acceleration no longer needs to be calculated. Then use this when
+  // calculating the acceleration to return early if the calculation is not
+  // needed.
+  SystemBody(string name,
+             double mass,
+             double radius,
+             double a,   // semi_major,
+             double e,   // eccentricity,
+             double i,   // inclination,
+             double w,   // argument of periapsis
+             double Om,  // longitude of ascending node
+             double E);  // eccentric anomaly
+
+  // TODO(trevnorris): Add ability to center a body around another body.
+  // acceleration calculations should be done here instead of in System to
+  // make working with threads easier. Use system_ to retrieve the full list of
+  // bodies that this instance needs to calculate acceleration against.
+
+  string& name();
+  double mass();
+  double radius();
+  Vector& pos();
+  Vector& vel();
+  Vector& acc();
+  System* system();
+  SystemBody* orbiting();
+  void set_orbit(SystemBody* body);
+  void update_acceleration(vector<SystemBody*>& bodies);
+  void update_position_velocity(double t);
+
+ private:
+  friend class System;
+
+  void add_orbiting_body(SystemBody* body);
+  void remove_orbiting_body(SystemBody* body);
+
+  string name_ = "[unknown]";
+  double mass_ = 0;
+  double radius_ = 0;
+  double a_ = 0;
+  double e_ = 0;
+  double i_ = 0;
+  double w_ = 0;
+  double Om_ = 0;
+  double E_ = 0;
+  // Maximum ||r||^2 value where gravitational acceleration should be calc'd.
+  //double r_concern_ = 0;
+  System* system_;
+  SystemBody* orbiting_ = nullptr;
+  vector<SystemBody*> orbited_ = {};
+  Vector pos_ = { 0, 0, 0 };
+  Vector vel_ = { 0, 0, 0 };
+  Vector acc_ = { 0, 0, 0 };
 };
 
 
-struct Planet {
-  Planet(string n, double m, double r = 0)
-    : name(n), mass(m), radius(r), inicon(), _pos(), _vel(), _acc() { }
-  Planet(string n,      // name
-         double m,      // mass
-         double in,     // inclination
-         double sm,     // semi-major
-         double ec,     // eccentricity
-         double r = 0)  // radius
-    : name(n), mass(m), radius(r), _pos(), _vel(), _acc() {
-    inicon.inclination = in;
-    inicon.semi_major = sm;
-    inicon.eccentricity = ec;
-    inicon.aphelion = sm * (1 + ec);
-    inicon.perihelion = sm * (1 - ec);
-    pos()->set(inicon.aphelion, 0, 0);
-  }
+class System {
+ public:
+  void add_body(SystemBody* body);
+  // TODO implement
+  //void remove_body(SystemBody* body);
 
-  inline Vector* pos() { return &_pos; }
-  inline Vector* vel() { return &_vel; }
-  inline Vector* acc() { return &_acc; }
+  // Thread-safe to read since there will be no additional writers.
+  vector<SystemBody*>& bodies();
 
-  string name;
-  double mass;
-  double radius;
-  IniCon inicon;
-  Vector _pos;
-  Vector _vel;
-  Vector _acc;
+  // Run system using step seconds, for dur steps, using threads.
+  void step(double step);
+
+ private:
+  vector<SystemBody*> bodies_ = {};
+  vector<ProcessingThread*> threads_ = {};
 };
 
 
-static inline void add_acceleration(Planet* p1, Planet* p2) {
-  auto p1pos = p1->pos();
-  auto p2pos = p2->pos();
-  double dx = p1pos->x() - p2pos->x();
-  double dy = p1pos->y() - p2pos->y();
-  double dz = p1pos->z() - p2pos->z();
-  double rsq = dx * dx + dy * dy + dz * dz;
-  double r = 1 / sqrt(rsq);
-  double Fg;
-
-  Fg = -G * p2->mass / rsq;
-  p1->acc()->add(Fg * dx * r,
-                 Fg * dy * r,
-                 Fg * dz * r);
-
-  Fg = -G * p1->mass / rsq;
-  p2->acc()->add(Fg * (p2pos->x() - p1pos->x()) * r,
-                 Fg * (p2pos->y() - p1pos->y()) * r,
-                 Fg * (p2pos->z() - p1pos->z()) * r);
+// TODO Upon creation determine the ||r||^2 value using the body's mass at
+// which acceleration no longer needs to be calculated. Then use this when
+// calculating the acceleration to return early if the calculation is not
+// needed.
+SystemBody::SystemBody(string name,
+           double mass,
+           double radius,
+           double a,  // semi_major,
+           double e,  // eccentricity,
+           double i,  // inclination,
+           double w,  // argument of periapsis
+           double Om, // longitude of ascending node
+           double E)  // eccentric anomaly
+    : name_(name),
+      mass_(mass),
+      radius_(radius),
+      a_(a),
+      e_(e),
+      i_(i),
+      w_(w),
+      Om_(Om),
+      E_(E) {
 }
 
-static inline void add_position_velocity(Planet* p1, double t) {
-  double tsq = t * t * 0.5;
-  auto p1pos = p1->pos();
-  auto p1vel = p1->vel();
-  auto p1acc = p1->acc();
-  p1pos->add(p1vel->x() * t + p1acc->x() * tsq,
-             p1vel->y() * t + p1acc->y() * tsq,
-             p1vel->z() * t + p1acc->z() * tsq);
-  p1vel->add(p1acc->x() * t,
-             p1acc->y() * t,
-             p1acc->z() * t);
+string& SystemBody::name() { return name_; }
+double SystemBody::mass() { return mass_; }
+double SystemBody::radius() { return radius_; }
+Vector& SystemBody::pos() { return pos_; }
+Vector& SystemBody::vel() { return vel_; }
+Vector& SystemBody::acc() { return acc_; }
+
+System* SystemBody::system() {
+  return system_;
+}
+
+SystemBody* SystemBody::orbiting() {
+  return orbiting_;
+}
+
+// TODO(trevnorris): Simply adding position vectors isn't good enough. Fix it.
+void SystemBody::set_orbit(SystemBody* body) {
+  if (body == this) {
+    return;
+  }
+  // Body was orbiting something already, remove it from the other Body's list.
+  if (orbiting_ != nullptr) {
+    orbiting_->remove_orbiting_body(this);
+  }
+  orbiting_ = body;
+  orbiting_->add_orbiting_body(this);
+  kep2cart(orbiting_->mass(), a_, e_, i_, w_, Om_, E_, pos_, vel_);
+  pos_ += orbiting_->pos();
+  for (auto& b : orbited_) {
+    // Some unnecessary operations will happen here, but this code is executed
+    // very little. So not going to worry about it.
+    b->set_orbit(this);
+  }
+}
+
+void SystemBody::add_orbiting_body(SystemBody* body) {
+  if (std::end(orbited_) == std::find(orbited_.begin(), orbited_.end(), body))
+    return;
+  orbited_.push_back(body);
+}
+
+void SystemBody::remove_orbiting_body(SystemBody* body) {
+  auto i = std::find(orbited_.begin(), orbited_.end(), body);
+  if (std::end(orbited_) != i) {
+    orbited_.erase(i);
+  }
+}
+
+void SystemBody::update_acceleration(vector<SystemBody*>& bodies) {
+  acc_.zero();
+  for (SystemBody* body : bodies) {
+    Vector& p = body->pos();
+    double rsq = pos_.mag_sq(&p);
+    if (&pos_ == &p)
+      continue;
+    //if (rsq < r_concern_)
+      //continue;
+    acc_ += -G * body->mass() / (rsq * sqrt(rsq)) * (pos_ - p);
+  }
+}
+
+void SystemBody::update_position_velocity(double t) {
+  pos_ += vel_ * t + acc_ * t * t * 0.5;
+  vel_ += acc_ * t;
 }
 
 
-struct SolarSystem {
-  SolarSystem() { }
-  SolarSystem(vector<Planet*> p) : planets(p), sun(nullptr) { }
+void System::add_body(SystemBody* body) {
+  bodies_.push_back(body);
+  // TODO(trevnorris): if system_ != nullptr then remove from the other sysstem
+  body->system_ = this;
+}
 
-  void init() {
-    Vector bc_p;
-    double M = sun->mass;
-    double bc_m = M;
+vector<SystemBody*>& System::bodies() {
+  return bodies_;
+}
 
-    // Calculate initial velocity of each planet.
-    for (auto b : planets) {
-      auto bi = &b->inicon;
-      auto vel = b->vel();
-      // Calculate the instantaneous orbital speed at the aphelion. Taken from
-      // https://en.wikipedia.org/wiki/Orbital_speed#Instantaneous_orbital_speed
-      double bv = sqrt(G * M * (2 / bi->aphelion - 1 / bi->semi_major));
-      vel->set(0,
-               bv * cos(bi->inclination * PI / 180),
-               -bv * sin(bi->inclination * PI / 180));
+
+void System::step(double step) {
+  for (auto& sb : bodies_) {
+    sb->update_acceleration(bodies_);
+  }
+  for (auto& sb : bodies_) {
+    sb->update_position_velocity(step);
+  }
+}
+
+
+int main(int argc, char* argv[]) {
+  System ssm;
+  SystemBody sun("sun",         1.9885e30,  696342000, 0, 0, 0, 0, 0, 0);
+  SystemBody mercury("mercury", 3.3011e23,  2439700,  57909175678.24835,  0.20563069, 6.3472876, 77.45645,  48.33167,  0);
+  SystemBody venus("venus",     4.8675e24,  6051800,  108208925513.1937,  0.00677323, 2.1545480, 131.53298, 76.68069,  0);
+  SystemBody earth("earth",     5.97237e24, 6378137,  149597887155.76578, 0.01671022, 1.5717062, 102.94719, -11.26064, 0);
+  //SystemBody moon("moon", 7.34767309e22, 1737100, 384400000, 0.0549, 5.145, 0, 0, 0);
+  SystemBody mars("mars",       6.4171e23,  3396200,  227936637241.84332, 0.09341233, 1.6311871, 336.04084, 49.57854,  0);
+  SystemBody jupiter("jupiter", 1.8982e27,  71492000, 778412026775.1428,  0.04839266, 0.3219657, 14.75385,  100.55615, 0);
+  SystemBody saturn("saturn",   5.6834e26,  60268000, 1426725412588.1675, 0.05415060, 0.9254848, 92.43194,  113.71504, 0);
+  SystemBody uranus("uranus",   8.6810e25,  25559000, 2870972219969.714,  0.04716771, 0.9946743, 170.96424, 74.22988,  0);
+  SystemBody neptune("neptune", 1.02413e26, 24764000, 4498252910764.0625, 0.00858587, 0.7354109, 44.97135,  131.72169, 0);
+  SystemBody pluto("pluto",     1.309e22,   1188300,  5906376272436.361,  0.24880766, 17.14175,  224.06676, 110.30347, 0);
+
+  mercury.set_orbit(&sun);
+  venus.set_orbit(&sun);
+  earth.set_orbit(&sun);
+  //moon.set_orbit(&earth);
+  mars.set_orbit(&sun);
+  jupiter.set_orbit(&sun);
+  saturn.set_orbit(&sun);
+  uranus.set_orbit(&sun);
+  neptune.set_orbit(&sun);
+  pluto.set_orbit(&sun);
+
+  ssm.add_body(&sun);
+  ssm.add_body(&mercury);
+  ssm.add_body(&venus);
+  ssm.add_body(&earth);
+  ssm.add_body(&mars);
+  ssm.add_body(&jupiter);
+  ssm.add_body(&saturn);
+  ssm.add_body(&uranus);
+  ssm.add_body(&neptune);
+  ssm.add_body(&pluto);
+
+  double YEAR_SEC = 365.2422 * 86400;
+  double YEARS = 1;
+  double TOTAL_TIME = YEARS * 365.2422 * 86400;
+  double STEP_SEC = 1;
+  size_t iter = 0;
+  uint64_t t;
+
+  print_system(&ssm);
+  printf("\n");
+
+  t = hrtime();
+
+  for (double i = 0; i < TOTAL_TIME; i += STEP_SEC) {
+    if ((size_t)i % (size_t)(YEAR_SEC / 10 * STEP_SEC) < 1) {
+      double u = (hrtime() - t) / 1e9;
+      double est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
+      printf("\r%c[2K", 27);
+      printf("%.2f year(s) calculated   %.4f remaining",
+             i / YEAR_SEC,
+             est);
+      fflush(stdout);
     }
-
-    // Calculate barycenter, assume position of sun is [0, 0, 0]. Start by
-    // summing m1 * x1 + m2 * x2 + ... and also summing m1 + m2
-    for (auto b : planets) {
-      Vector tpos = *b->pos();
-      bc_m += b->mass;
-      tpos.mul(b->mass);
-      bc_p.add(tpos);
-    }
-    bc_p.div(bc_m);
-
-    // Adjust the position of the planets and sun to place the barycenter at
-    // coordinates [0, 0, 0].
-    sun->pos()->sub(bc_p);
-    for (auto b : planets) {
-      b->pos()->sub(bc_p);
-    }
+    iter++;
+    ssm.step(STEP_SEC);
   }
 
-  void add_sun(Planet* p) {
-    sun = p;
+  t = hrtime() - t;
+  printf("\r%c[2K", 27);
+  print_system(&ssm);
+  printf("step: %.2f    iter: %lu   %.2f ns/iter   %.2f minutes\n",
+         STEP_SEC,
+         iter,
+         1.0 * t / iter,
+         1.0 * t / 1e9 / 60);
+  printf("%.2f years computed\n",
+         1.0 * iter * STEP_SEC / 86400 / 365.256);
+
+  return 0;
+}
+
+
+double d2r(double d) {
+  return d * PI / 180;
+}
+
+
+/**
+ * M - mass of orbited body
+ * a - semi-major axis
+ * e - eccentricity
+ * i - inclination
+ * w - argument of periapsis (ω)
+ * Om - longitude of ascending node (ω or Ω)
+ * E - eccentric anomaly < 2π, angle of point P if orbit of P was a circle.
+ * v - true anomaly (ν, θ, or f)
+ * r - radius; distance from the focus to point P
+ * h - angular momentum
+ */
+void kep2cart(double M, double a, double e, double i, double w, double Om,
+              double E, Vector& pos, Vector& vel) {
+  i = d2r(i);
+  w = d2r(w);
+  Om = d2r(Om);
+  double v = 2 * atan(sqrt((1 + e) / (1 - e)) * tan(E / 2));
+  double r = a * (1 - e * cos(E));
+  double mu = G * M;
+  double h = sqrt(mu * a / (1 - e * e));
+  pos.set(r * (cos(Om) * cos(w + v) - sin(Om) * sin(w + v) * cos(i)),
+          r * (sin(Om) * cos(w + v) + cos(Om) * sin(w + v) * cos(i)),
+          r * (sin(i) * sin(w + v)));
+  vel.set(-(mu / h) * (cos(Om) * (sin(w + v) + e * sin(w)) +
+                       sin(Om) * (cos(w + v) + e * cos(w)) * cos(i)),
+          -(mu / h) * (sin(Om) * (sin(w + v) + e * sin(w)) -
+                       cos(Om) * (cos(w + v) + e * cos(w)) * cos(i)),
+          (mu / h) * (cos(w + v) + e * cos(w)) * sin(i));
+}
+
+
+void print_body(SystemBody* p) {
+  SystemBody* o = p->orbiting();
+  printf("[%s]\n", p->name().c_str());
+  printf("  [position]  x: %-14.7f y: %-14.7f z: %-14.7f  to orbiting: %.7f\n",
+         p->pos().x() / AU,
+         p->pos().y() / AU,
+         p->pos().z() / AU,
+         //p->pos().len() / AU);
+         o != nullptr ? p->pos().mag(o->pos()) / AU : 0);
+  printf("  [velocity]  x: %-14.7f y: %-14.7f z: %-14.7f  velocity: %.2f m/s\n",
+         p->vel().x(),
+         p->vel().y(),
+         p->vel().z(),
+         p->vel().len());
+}
+
+
+void print_system(System* s) {
+  for (auto& b : s->bodies()) {
+    print_body(b);
   }
+}
 
-  void add_planet(Planet* p) {
-    planets.push_back(p);
-  }
-
-  // TODO: Implement collision detection. To do this will need the radius of
-  // each planet, then need to used the distance between them.
-  void step(uint64_t t) {
-    // First need to reset all acceleration Vectors.
-    for (auto& b1 : planets) {
-      b1->acc()->reset();
-    }
-    sun->acc()->reset();
-    for (size_t i = 0; i < planets.size(); i++) {
-      for (size_t j = i + 1; j < planets.size(); j++) {
-        add_acceleration(planets[i], planets[j]);
-      }
-      add_acceleration(sun, planets[i]);
-    }
-    for (auto& b1 : planets) {
-      add_position_velocity(b1, t);
-    }
-    add_position_velocity(sun, t);
-  }
-
-  Planet* get_planet(string name) {
-    for (auto planet : planets) {
-      if (planet->name == name) {
-        return planet;
-      }
-    }
-    return nullptr;
-  }
-
-  vector<Planet*> planets;
-  Planet* sun;
-};
-
-
-// TODO: Fix this horrible ugliness...
-uint64_t t;
-double STEP_SEC;
-size_t iter;
-SolarSystem* ssm = nullptr;
-Planet* sun = nullptr;
-
-
-static void printPlanet(Planet* p, Planet* sun) {
+/*
+static void printPlanet(SystemBody* p, SystemBody* sun) {
   if (p == nullptr) return;
   printf("[%s]\n", p->name.c_str());
   printf("  [position]  x: %-14.7fy: %-14.7fz: %.7f  mag: %.7f\n",
@@ -204,115 +383,4 @@ static void printPlanet(Planet* p, Planet* sun) {
          //p->pos()->len() / AU - p->pos()->mag(sun->pos()) / AU,
          //p->vel()->len());
 }
-
-
-static void printSystem(SolarSystem* ssm, Planet* sun) {
-  printPlanet(sun, sun);
-  for (auto p : ssm->planets) {
-    if (sun != nullptr && p->name == sun->name) continue;
-    printPlanet(p, sun);
-  }
-}
-
-/*
-void s_handler(int s) {
-  printf("%c[2K\r", 27);
-  t = hrtime() - t;
-  printSystem(ssm, sun);
-  printf("step: %.2f    iter: %lu   %.2f ns/iter   %.2f minutes\n",
-         STEP_SEC,
-         iter,
-         1.0 * t / iter,
-         1.0 * t / 1e9 / 60);
-  printf("%.2f years computed\n",
-         1.0 * iter * STEP_SEC / 60 / 60 / 24 / 365.256);
-  exit(0);
-}
-*/
-
-
-int main(int argc, char* argv[]) {
-  /*
-  struct sigaction sigIntHandler;
-
-  sigIntHandler.sa_handler = s_handler;
-  sigemptyset(&sigIntHandler.sa_mask);
-  sigIntHandler.sa_flags = 0;
-  sigaction(SIGINT, &sigIntHandler, nullptr);
-  */
-
-  Planet sun("sun",         1.9885e30,  696342000);
-  Planet mercury("mercury", 3.3011e23,  6.3472876, 57909175678.24835,  0.20563069, 2439700);
-  Planet venus("venus",     4.8675e24,  2.1545480, 108208925513.1937,  0.00677323, 6051800);
-  Planet earth("earth",     5.97237e24, 1.5717062, 149597887155.76578, 0.01671022, 6378137);
-  Planet mars("mars",       6.4171e23,  1.6311871, 227936637241.84332, 0.09341233, 3396200);
-  Planet jupiter("jupiter", 1.8982e27,  0.3219657, 778412026775.1428,  0.04839266, 71492000);
-  Planet saturn("saturn",   5.6834e26,  0.9254848, 1426725412588.1675, 0.05415060, 60268000);
-  Planet uranus("uranus",   8.6810e25,  0.9946743, 2870972219969.714,  0.04716771, 25559000);
-  Planet neptune("neptune", 1.02413e26, 0.7354109, 4498252910764.0625, 0.00858587, 24764000);
-  Planet pluto("pluto", 1.303e22, 15.55, 5906376272436.361, 0.24880766, 606000);
-
-  SolarSystem ssm;
-  ssm.add_sun(&sun);
-  //ssm.add_planet(&mercury);
-  //ssm.add_planet(&venus);
-  ssm.add_planet(&earth);
-  //ssm.add_planet(&mars);
-  ssm.add_planet(&jupiter);
-  //ssm.add_planet(&saturn);
-  //ssm.add_planet(&uranus);
-  //ssm.add_planet(&neptune);
-  //ssm.add_planet(&pluto);
-  ssm.init();
-
-  double YEAR_SEC = 365.2422 * 86400;
-  double YEARS = 1;
-  double TOTAL_TIME = YEARS * 365.2422 * 86400;
-  STEP_SEC = 1;
-  iter = 0;
-
-  printSystem(&ssm, &sun);
-  printf("\n");
-
-  t = hrtime();
-
-  for (double i = 0; i < TOTAL_TIME; i += STEP_SEC) {
-    if ((size_t)i % (size_t)(YEAR_SEC / 10 * STEP_SEC) < 1) {
-      double u = (hrtime() - t) / 1e9;
-      double est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
-      printf("\r%c[2K", 27);
-      printf("%.2f year(s) calculated   %.4f remaining",
-             i / YEAR_SEC,
-             est);
-      fflush(stdout);
-    }
-    iter++;
-    ssm.step(STEP_SEC);
-  }
-
-  t = hrtime() - t;
-  printf("\r%c[2K", 27);
-  printSystem(&ssm, &sun);
-  printf("step: %.2f    iter: %lu   %.2f ns/iter   %.2f minutes\n",
-         STEP_SEC,
-         iter,
-         1.0 * t / iter,
-         1.0 * t / 1e9 / 60);
-  printf("%.2f years computed\n",
-         1.0 * iter * STEP_SEC / 86400 / 365.256);
-
-  return 0;
-}
-
-/*
-  if (i % (YEAR_SEC / 10 * STEP) < 1) {
-    const u = (hrtime() - t) / 1e9;
-    const est = u / (i / TOTAL_TIME) - u * (i / TOTAL_TIME);
-    process.stdout.cursorTo(0);
-    process.stdout.clearLine();
-    process.stdout.write(`${(i / YEAR_SEC).toFixed(1)} year(s) calculated`);
-    if (Number.isFinite(est)) {
-      process.stdout.write(`   ${sec_to_string(est)} remaining`);
-    }
-  }
 */
