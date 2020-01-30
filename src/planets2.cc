@@ -24,7 +24,6 @@ class ProcessingThread;
 class SystemBody;
 class System;
 
-//static void print_vector(Vector* v);
 static double d2r(double d);
 static void kep2cart(double M, double a, double e, double i, double w,
                      double Om, double E, Vector& pos, Vector& acc);
@@ -54,16 +53,16 @@ class SystemBody {
   // make working with threads easier. Use system_ to retrieve the full list of
   // bodies that this instance needs to calculate acceleration against.
 
-  string& name();
-  double mass();
-  double radius();
-  Vector& pos();
-  Vector& vel();
-  Vector& acc();
-  System* system();
-  SystemBody* orbiting();
+  constexpr string& name();
+  constexpr double mass();
+  constexpr double radius();
+  constexpr Vector& pos();
+  constexpr Vector& vel();
+  constexpr Vector& acc();
+  constexpr System* system();
+  constexpr SystemBody* orbiting();
   void set_orbit(SystemBody* body);
-  void update_acceleration(vector<SystemBody*>& bodies);
+  void update_acceleration(const vector<SystemBody*>& bodies);
   void update_position_velocity(double t);
 
  private:
@@ -98,11 +97,11 @@ class System {
   // TODO implement
   //void remove_body(SystemBody* body);
 
-  // Thread-safe to read since there will be no additional writers.
-  vector<SystemBody*>& bodies();
-
   // Run system using step seconds, for dur steps, using threads.
   void step(double step);
+
+  // Thread-safe to read since there will be no additional writers.
+  constexpr vector<SystemBody*>& bodies();
 
  private:
   vector<SystemBody*> bodies_ = {};
@@ -134,20 +133,14 @@ SystemBody::SystemBody(string name,
       E_(E) {
 }
 
-string& SystemBody::name() { return name_; }
-double SystemBody::mass() { return mass_; }
-double SystemBody::radius() { return radius_; }
-Vector& SystemBody::pos() { return pos_; }
-Vector& SystemBody::vel() { return vel_; }
-Vector& SystemBody::acc() { return acc_; }
-
-System* SystemBody::system() {
-  return system_;
-}
-
-SystemBody* SystemBody::orbiting() {
-  return orbiting_;
-}
+constexpr string& SystemBody::name() { return name_; }
+constexpr double SystemBody::mass() { return mass_; }
+constexpr double SystemBody::radius() { return radius_; }
+constexpr Vector& SystemBody::pos() { return pos_; }
+constexpr Vector& SystemBody::vel() { return vel_; }
+constexpr Vector& SystemBody::acc() { return acc_; }
+constexpr System* SystemBody::system() { return system_; }
+constexpr SystemBody* SystemBody::orbiting() { return orbiting_; }
 
 // TODO(trevnorris): Simply adding position vectors isn't good enough. Fix it.
 void SystemBody::set_orbit(SystemBody* body) {
@@ -182,13 +175,13 @@ void SystemBody::remove_orbiting_body(SystemBody* body) {
   }
 }
 
-void SystemBody::update_acceleration(vector<SystemBody*>& bodies) {
+void SystemBody::update_acceleration(const vector<SystemBody*>& bodies) {
   acc_.zero();
-  for (SystemBody* body : bodies) {
-    Vector& p = body->pos();
-    double rsq = pos_.mag_sq(&p);
-    if (&pos_ == &p)
+  for (auto* body : bodies) {
+    if (body == this)
       continue;
+    auto& p = body->pos();
+    double rsq = pos_.mag_sq(&p);
     //if (rsq < r_concern_)
       //continue;
     acc_ += -G * body->mass() / (rsq * sqrt(rsq)) * (pos_ - p);
@@ -200,17 +193,15 @@ void SystemBody::update_position_velocity(double t) {
   vel_ += acc_ * t;
 }
 
-
 void System::add_body(SystemBody* body) {
   bodies_.push_back(body);
   // TODO(trevnorris): if system_ != nullptr then remove from the other sysstem
   body->system_ = this;
 }
 
-vector<SystemBody*>& System::bodies() {
+constexpr vector<SystemBody*>& System::bodies() {
   return bodies_;
 }
-
 
 void System::step(double step) {
   for (auto& sb : bodies_) {
