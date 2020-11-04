@@ -1,18 +1,14 @@
 'use strict';
 
 const { PI, atan, cos, floor, log10, sin, sqrt, tan } = Math;
+const {
+  AU, C, DAY_SEC, G, GM, STEFAN_BOLTZMANN, YEAR_SEC, ZERO_POINT_LUMINOSITY
+} = require('./constants.js');
 
-// To prevent a circular dependency, pulling these from constants.js.
-const AU = 149597870700;                  // meters
-const C = 299792458;                      // m⋅s⁻¹
-const DAY_SEC = 86400;                    // one day in seconds
-const G = 6.67428e-11;                    // N⋅m²⋅kg⁻² OR m³⋅kg⁻¹⋅s⁻²
-const STEFAN_BOLTZMANN = 5.670374419e-8;  // W⋅m⁻²⋅K⁻⁴
-const SUN_MASS = 1.98847e30;              // kg
-const SUN_RADIUS = 696342;                // km
+// To prevent a circular dependency, pulling these from solar_system_planets.js.
+const SUN_MASS = GM / G;
+const SUN_RADIUS = 696342;
 const SUN_LUMINOSITY = calc_lum(SUN_RADIUS, 5778);
-const YEAR_SEC = 365.2421875 * 86400;
-const ZERO_POINT_LUMINOSITY = 3.0128e28;  // Watts
 
 module.exports = {
   angular_diameter,
@@ -28,16 +24,23 @@ module.exports = {
   gen_star,
   gen_star_solar,
   grshift,
-  grshift_arcsec,
-  kep2cart,
+  grshift_year,
+  kep_to_cart,
   relative_mag,
   rotate_main,
   rotate_second,
-  sec_to_string,
   star_to_period,
-  temp2distance,
+  temp_to_semimajor,
 };
 
+
+function d2r(n) {
+  return n * PI / 180;
+}
+
+function r2d(n) {
+  return n * 180 / PI;
+}
 
 /**
  * Return the diameter of a planet in arc seconds.
@@ -46,18 +49,18 @@ module.exports = {
  * r - radius of object in km.
  */
 function arcsec_diameter(a, r) {
-  return 2 * atan((2 * r * 1000) / (2 * a * 1000)) * 180 / PI * 3600;
+  return 2 * r2d(atan(r / a)) * 3600;
 }
 
 /**
- * Return the angular diameter of an object in millimeters.
+ * Return the angular diameter of an object in millimeters at distance m.
  *
  * a - distance from object in km.
  * r - radius of object in km.
  * m - perceived distance in meters.
  */
 function angular_diameter(a, r, m = 1) {
-  return arcsec_diameter(a / 1000, r / 1000) / 3600 * PI / 180 * 1000 * m;
+  return 2 * atan(r / a) * m * 1000;
 }
 
 /**
@@ -69,7 +72,7 @@ function angular_diameter(a, r, m = 1) {
  * a - albedo
  */
 function black_body_temp(T, R, D, a) {
-  return T * sqrt((sqrt(1 - a) * R * 1000) / (2 * D * 1000)) - 273.15;
+  return T * sqrt((sqrt(1 - a) * R) / (2 * D)) - 273.15;
 }
 
 /**
@@ -100,7 +103,10 @@ function calc_lum(R, T) {
  */
 function calc_mean_speed(a, p, e) {
   return (2 * PI * (a * 1000) / (p * 86400)) *
-    (1 - 1 / 4 * e**2 - 3 / 64 * e**4 - 5 / 256 * e**6);
+    // 0.25 = 1 /4
+    // 0.046875 = 3 / 64
+    // 0.01953125 = 5 / 256
+    (1 - 0.25 * e**2 - 0.046875 * e**4 - 0.01953125 * e**6);
 }
 
 /**
@@ -186,8 +192,7 @@ function gen_star_solar(M0, R0, T) {
 }
 
 /**
- * Calculate the perihelion shift explained by general relativity in arc
- * seconds.
+ * Calculate the perihelion shift explained by general relativity in arcsec.
  *
  * a - semi-major axis in km.
  * M - the mass of the star.
@@ -214,7 +219,7 @@ function gen_star_solar(M0, R0, T) {
  *         (1-e²)ac²
  *
  * Which is the perihelion shift per orbit in radians. The reduced equation
- * after converting to arc seconds is:
+ * after converting 6π to degrees then arcseconds is:
  *
  *         3888000GM
  *    σ = -----------
@@ -227,21 +232,20 @@ function grshift(a, M, e) {
 
 /**
  * Calculate the perihelion shift from general relativity in arc seconds per
- * centry.
+ * year.
  *
  * a - semi-major axis in km.
  * M - the mass of the star.
  * e - is the eccentricity.
  */
-function grshift_arcsec(a, M, e) {
-  return grshift(a, M, e) * YEAR_SEC / calc_orbit_period(a / 1000, M / 1000);
-}
-
-function d2r(n) {
-  return n * PI / 180;
+function grshift_year(a, M, e) {
+  return grshift(a, M, e) * YEAR_SEC / calc_orbit_period(a, M);
 }
 
 /**
+ * Convert Keplarian coordinates to cartesian coordinates.
+ * TODO(trevnorris): This is returning in meters.
+ *
  * M - mass of orbited body in kg
  * a - semi-major axis in km
  * e - eccentricity
@@ -253,7 +257,7 @@ function d2r(n) {
  * r - radius; distance from the focus to point P
  * h - angular momentum
  */
-function kep2cart(M, a, e, i, w, Om, E) {
+function kep_to_cart(M, a, e, i, w, Om, E) {
   a *= 1000;  // from km to m
   i = d2r(i);
   w = d2r(w);
@@ -307,58 +311,31 @@ function rotate_second(a, b, t) {
   return a * sin(t * PI / 180) + b * cos(t * PI / 180);
 }
 
-function pad1(n) {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
-// Return seconds in an HH:MM:SS format
-function sec_to_string(s) {
-  let sec = 0;
-  let min = 0;
-  let hour = 0;
-  let day = 0;
-  let outs = '';
-
-  s = floor(s);
-
-  if (s === 0)
-    return '00:00:00';
-  outs = `${pad1(s % 60)}`;
-  s = floor(s / 60);
-  outs = s > 0 ? `${pad1(s % 60)}:${outs}` : `00:${outs}`;
-  s = floor(s / 60);
-  outs = s > 0 ? `${pad1(s % 24)}:${outs}` : `00:${outs}`;
-  s = floor(s / 24);
-  return s > 0 ? `${s}:${outs}` : outs;
+/**
+ * Given the following parameters, calculate the period of orbit around a star.
+ * This is useful when the final state of the planet is known, and need to work
+ * back.
+ *
+ * P - black body temp of planet in Celsius
+ * T - surface temp of the star in Kelvin
+ * R - radius of the star in km
+ * A - albedo
+ * M - mass of star in kg
+ */
+function star_to_period(P, T, R, A, M) {
+  return calc_orbit_period(temp_to_semimajor(P, T, R / 1000, A), M);
 }
 
 /**
- * Given the following parameters, calculate the period of a star. This is
- * useful when the final state of the planet is known, and need to work back.
+ * Return semi-major axis from star for a planet to have a specific temperature
+ * in km.
  *
- * M - mass of star in kg
- * R - radius of the star in km
- * T - surface temp of the star in Kelvin
  * P - black body temp of planet in Celsius
+ * T - surface temp of the star in Kelvin
+ * R - radius of the star in km
  * A - albedo
  */
-function star_to_period(M, R, T, P, A) {
+function temp_to_semimajor(P, T, R, A) {
   P += 273.15;
-  // calculated semi-major axis of the planet's orbit.
-  const a = sqrt(1 - A) * R * 1000 * T**2 / (2 * P**2);
-  return calc_orbit_period(a, M);
-}
-
-/**
- * Return distance from star for a planet to have a specific temperature in km.
- * TODO(trevnorris): is the return value the semi-major axis?
- *
- * P - black body temp of planet in Celsius
- * T - surface temp of the star in Kelvin
- * R - radius of the star in km
- * a - albedo
- */
-function temp2distance(P, T, R, a) {
-  P += 273.15;
-  return (sqrt(1 - a) * R * 1000 * T**2 / (2 * P**2)) / 1000;
+  return (sqrt(1 - A) * R * 1000 * T**2 / (2 * P**2)) / 1000;
 }
