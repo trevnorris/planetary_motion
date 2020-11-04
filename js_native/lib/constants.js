@@ -12,11 +12,6 @@ const {
 
 /**
  * All unites of measurement are either kilograms, kilometers, meters/sec
- *
- * Values taken from
- * http://asa.hmnao.com/static/files/2018/Astronomical_Constants_2018.txt
- *
- * The semi-major axis have been corrected to match the planet's sidereal year.
  */
 
 const CONSTS = {
@@ -25,9 +20,8 @@ const CONSTS = {
   GM: 1.32712440041e20,             // m³⋅s⁻²
   AU: 149597870.7,                  // km
   DAY_SEC: 86400,                   // one day in seconds
-  // TODO(trevnorris): Should this use Julian?
-  YEAR_DAY: 365.2421875,            // days in one tropical year
-  YEAR_SEC: 365.2421875 * 86400,    // seconds in a year
+  YEAR_DAY: 365.256363004,          // days in one sidereal year
+  YEAR_SEC: 365.256363004 * 86400,  // seconds in a year
   STEFAN_BOLTZMANN: 5.670374419e-8, // W⋅m⁻²⋅K⁻⁴
   ZERO_POINT_LUMINOSITY: 3.0128e28, // Watts
 }
@@ -39,15 +33,14 @@ const SUN = {
   LUMINOSITY: calc_lum(696342, 5778),
 };
 
-// SEMI_MAJOR and ECCENTRICITY were taken from J2000 values on
-// https://nssdc.gsfc.nasa.gov/planetary/factsheet/
 // The value of AU above was used to convert the distances.
 // INCLINATION is on the invariable plane.
+// SEMI_MAJOR has been corrected to match the orbital period.
 
 const MERCURY = {
   MASS: 3.3011e23,
   RADIUS: 2439.7,
-  SEMI_MAJOR: CONSTS.AU * 0.387098,
+  SEMI_MAJOR: CONSTS.AU * 0.3870973,
   ECCENTRICITY: 0.20563069,
   INCLINATION: 6.3472876,
   PERIAPSIS_ARG: 77.45645,  // Argument of periapsis
@@ -57,7 +50,7 @@ const MERCURY = {
 const VENUS = {
   MASS: 4.8675e24,
   RADIUS: 6051.8,
-  SEMI_MAJOR: CONSTS.AU * 0.723332,
+  SEMI_MAJOR: CONSTS.AU * 0.723331,
   ECCENTRICITY: 0.00677323,
   INCLINATION: 2.1545480,
   PERIAPSIS_ARG: 131.53298,  // Argument of periapsis
@@ -77,7 +70,7 @@ const EARTH = {
 const MARS = {
   MASS: 6.4171e23,
   RADIUS: 3396.19,
-  SEMI_MAJOR: CONSTS.AU * 1.523675,
+  SEMI_MAJOR: CONSTS.AU * 1.5236716,,
   ECCENTRICITY: 0.09341233,
   INCLINATION: 1.6311871,
   PERIAPSIS_ARG: 336.04084,  // Argument of periapsis
@@ -107,7 +100,7 @@ const SATURN = {
 const URANUS = {
   MASS: 8.6810e25,
   RADIUS: 25559,
-  SEMI_MAJOR: CONSTS.AU * 19.183,
+  SEMI_MAJOR: CONSTS.AU * 19.18304,
   ECCENTRICITY: 0.04716771,
   INCLINATION: 0.9946743,
   PERIAPSIS_ARG: 170.96424,  // Argument of periapsis
