@@ -1,0 +1,8 @@
+Usage: [node main.js] <command>
+
+where <command> is one of:
+  gen-system      generate a star system from given parameters
+
+  test-system     test a star system for orbital stability
+
+[node main.js] <command> -h   quick help on <command>

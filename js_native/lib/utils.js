@@ -1,9 +1,5 @@
 'use strict';
 
-module.exports = {
-  sec_to_string,
-};
-
 // Return seconds in an HH:MM:SS format
 function sec_to_string(s) {
   let sec = 0;
@@ -24,3 +20,23 @@ function sec_to_string(s) {
   s = floor(s / 24);
   return s > 0 ? `${s}:${outs}` : outs;
 }
+
+function deep_numberify(obj) {
+  Object.keys(obj).forEach((e) => {
+    const o = obj[e];
+    if (typeof o === 'string') {
+      if (!isNaN(o))
+        obj[e] = +o;
+      return;
+    }
+    if (typeof o === 'object' && o !== null)
+      deep_numberify(o);
+  });
+
+  return obj;
+}
+
+module.exports = {
+  sec_to_string,
+  deep_numberify,
+};

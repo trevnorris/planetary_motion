@@ -1,0 +1,23 @@
+Usage: gen-system [OPTION]...
+
+Generate a star system given the list of OPTIONs.
+
+      --config=FILE     file path to configuration file containing parameters to
+                          use when generating the star system
+  -h, --help            display this help and exit
+
+
+The structure of the config FILE is an ini file. List of config options are:
+
+[star]
+  mass                  mass of the star in kg
+  radius                radius of the star in km
+  temp                  surface temperature of the star in kelvin
+[planet.<name>]
+  mass                  mass of the planet in kg
+  radius                radius of the planet in km
+  albedo                planet's albedo, used to calculate orbit
+  bb_temp               planet's black body temperature in celcius, used with
+                          albedo to calculate the necessary orbit
+
+Only one star can be provided.

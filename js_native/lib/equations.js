@@ -10,29 +10,6 @@ const SUN_MASS = GM / G;
 const SUN_RADIUS = 696342;
 const SUN_LUMINOSITY = calc_lum(SUN_RADIUS, 5778);
 
-module.exports = {
-  angular_diameter,
-  arcsec_diameter,
-  black_body_temp,
-  calc_aphelion,
-  calc_lum,
-  calc_mean_speed,
-  calc_orbit_period,
-  calc_orbit_period_days,
-  calc_perihelion,
-  calc_solar_lum,
-  gen_star,
-  gen_star_solar,
-  grshift,
-  grshift_year,
-  kep_to_cart,
-  relative_mag,
-  rotate_main,
-  rotate_second,
-  star_to_period,
-  temp_to_semimajor,
-};
-
 
 function d2r(n) {
   return n * PI / 180;
@@ -339,3 +316,27 @@ function temp_to_semimajor(P, T, R, A) {
   P += 273.15;
   return (sqrt(1 - A) * R * 1000 * T**2 / (2 * P**2)) / 1000;
 }
+
+
+module.exports = {
+  angular_diameter,
+  arcsec_diameter,
+  black_body_temp,
+  calc_aphelion,
+  calc_lum,
+  calc_mean_speed,
+  calc_orbit_period,
+  calc_orbit_period_days,
+  calc_perihelion,
+  calc_solar_lum,
+  gen_star,
+  gen_star_solar,
+  grshift,
+  grshift_year,
+  kep_to_cart,
+  relative_mag,
+  rotate_main,
+  rotate_second,
+  star_to_period,
+  temp_to_semimajor,
+};

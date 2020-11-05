@@ -122,7 +122,6 @@ const stars = {
 
 
 const planets = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune];
-
 planets.forEach(p => {
   const e = p.eccentricity;
   p.perihelion = calc_perihelion(p.semi_major, e);
