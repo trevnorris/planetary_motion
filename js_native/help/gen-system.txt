@@ -10,14 +10,37 @@ Generate a star system given the list of OPTIONs.
 The structure of the config FILE is an ini file. List of config options are:
 
 [star]
+  type                  for randomly generating a star set the classification,
+                          e.g. G0V, K3V
+  bv_color              B - V color index
+  ub_color              U - B color index
   mass                  mass of the star in kg
   radius                radius of the star in km
   temp                  surface temperature of the star in kelvin
+
+; mass and radius are always necessary
 [planet.<name>]
   mass                  mass of the planet in kg
   radius                radius of the planet in km
+
+; for a randomly generated planet, only these need to be provided
+[planet.<name>]
   albedo                planet's albedo, used to calculate orbit
   bb_temp               planet's black body temperature in celcius, used with
                           albedo to calculate the necessary orbit
+
+; otherwise the keplarian coordinates need to be provided in full. this is the
+; output when generating a planet from the above.
+[planet.<name>]
+    a                   semi-major axis in km
+    e                   eccentricity
+    i                   inclination
+    w                   argument of periapsis (ω)
+    Om                  longitude of ascending node (ω or Ω)
+    E                   eccentric anomaly < 2π, angle of point P if orbit of
+                          P was a circle.
+    v                   true anomaly (ν, θ, or f)
+    r                   radius; distance from the focus to point P
+    h                   angular momentum
 
 Only one star can be provided.
