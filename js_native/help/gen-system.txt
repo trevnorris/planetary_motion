@@ -9,11 +9,13 @@ Generate a star system given the list of OPTIONs.
 
 The structure of the config FILE is an ini file. List of config options are:
 
+; pass in a type to randomly generate a star
 [star]
   type                  for randomly generating a star set the classification,
                           e.g. G0V, K3V
-  bv_color              B - V color index
-  ub_color              U - B color index
+
+; or pass in the values directly
+[star]
   mass                  mass of the star in kg
   radius                radius of the star in km
   temp                  surface temperature of the star in kelvin
@@ -34,9 +36,9 @@ The structure of the config FILE is an ini file. List of config options are:
 [planet.<name>]
     a                   semi-major axis in km
     e                   eccentricity
-    i                   inclination
-    w                   argument of periapsis (ω)
-    Om                  longitude of ascending node (ω or Ω)
+    i                   inclination in degrees
+    w                   argument of periapsis (ω) in degrees
+    Om                  longitude of ascending node (ω or Ω) in degrees
     E                   eccentric anomaly < 2π, angle of point P if orbit of
                           P was a circle.
     v                   true anomaly (ν, θ, or f)

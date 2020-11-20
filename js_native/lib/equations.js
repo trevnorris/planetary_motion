@@ -2,13 +2,17 @@
 
 const { PI, atan, cos, floor, log10, sin, sqrt, tan } = Math;
 const {
-  AU, C, DAY_SEC, G, GM, STEFAN_BOLTZMANN, YEAR_SEC, ZERO_POINT_LUMINOSITY
+  C,
+  DAY,
+  G,
+  GM,
+  SOLAR_LUMINOSITY,
+  SOLAR_MASS,
+  SOLAR_RADIUS,
+  STEFAN_BOLTZMANN,
+  YEAR_SEC,
+  ZERO_POINT_LUMINOSITY,
 } = require('./constants.js');
-
-// To prevent a circular dependency, pulling these from solar_system_planets.js.
-const SUN_MASS = GM / G;
-const SUN_RADIUS = 696342;
-const SUN_LUMINOSITY = calc_lum(SUN_RADIUS, 5778);
 
 
 function d2r(n) {
@@ -103,7 +107,7 @@ function calc_orbit_period(a, M) {
  * M - mass of the star in kg
  */
 function calc_orbit_period_days(a, M) {
-  return calc_orbit_period(a / 1000, M) / DAY_SEC;
+  return calc_orbit_period(a / 1000, M) / DAY;
 }
 
 /**
@@ -123,7 +127,7 @@ function calc_perihelion(a, e) {
  * T - surface temp of the star in Kelvin
  */
 function calc_solar_lum(R, T) {
-  return calc_lum(R / 1000, T) / SUN_LUMINOSITY;
+  return calc_lum(R / 1000, T) / SOLAR_LUMINOSITY;
 }
 
 /**
@@ -141,7 +145,7 @@ function gen_star(M, R, T) {
     radius: R,
     temp: T,
     luminosity,
-    stellar_lum: luminosity / SUN_LUMINOSITY,
+    stellar_lum: luminosity / SOLAR_LUMINOSITY,
     // TODO(trevnorris): wrong.
     abs_mag,
   };
@@ -155,14 +159,14 @@ function gen_star(M, R, T) {
  * T - surface temp of the star in Kelvin
  */
 function gen_star_solar(M0, R0, T) {
-  const lum = calc_lum(R0 / 1000 * SUN_RADIUS, T);
+  const lum = calc_lum(R0 / 1000 * SOLAR_RADIUS, T);
   const abs_mag = -2.5 * log10(lum / ZERO_POINT_LUMINOSITY);
   return {
-    mass: M0 * SUN_MASS,
-    radius: R0 * SUN_RADIUS,
+    mass: M0 * SOLAR_MASS,
+    radius: R0 * SOLAR_RADIUS,
     temp: T,
     luminosity: lum,
-    stellar_lum: lum / SUN_LUMINOSITY,
+    stellar_lum: lum / SOLAR_LUMINOSITY,
     // TODO(trevnorris): wrong.
     abs_mag,
   };
@@ -220,15 +224,14 @@ function grshift_year(a, M, e) {
 }
 
 /**
- * Convert Keplarian coordinates to cartesian coordinates.
- * TODO(trevnorris): This is returning in meters.
+ * Convert Keplarian coordinates to cartesian coordinates in km.
  *
  * M - mass of orbited body in kg
  * a - semi-major axis in km
  * e - eccentricity
- * i - inclination
- * w - argument of periapsis (ω)
- * Om - longitude of ascending node (ω or Ω)
+ * i - inclination in degrees
+ * w - argument of periapsis (ω) in degrees
+ * Om - longitude of ascending node (ω or Ω) in degrees
  * E - eccentric anomaly < 2π, angle of point P if orbit of P was a circle.
  * v - true anomaly (ν, θ, or f)
  * r - radius; distance from the focus to point P
@@ -239,20 +242,22 @@ function kep_to_cart(M, a, e, i, w, Om, E) {
   i = d2r(i);
   w = d2r(w);
   Om = d2r(Om);
+
   const v = 2 * atan(sqrt((1 + e) / (1 - e)) * tan(E / 2));
   const r = a * (1 - e * cos(E));
   const mu = G * M;
   const h = sqrt(mu * a / (1 - e**2));
 
-  const x = r * (cos(Om) * cos(w + v) - sin(Om) * sin(w + v) * cos(i));
-  const y = r * (sin(Om) * cos(w + v) + cos(Om) * sin(w + v) * cos(i));
-  const z = r * (sin(i) * sin(w + v));
+  const x = r * (cos(Om) * cos(w + v) - sin(Om) * sin(w + v) * cos(i)) / 1e3;
+  const y = r * (sin(Om) * cos(w + v) + cos(Om) * sin(w + v) * cos(i)) / 1e3;
+  const z = r * (sin(i) * sin(w + v)) / 1e3;
 
   const v_x = -(mu / h) * (cos(Om) * (sin(w + v) + e * sin(w)) +
-                           sin(Om) * (cos(w + v) + e * cos(w)) * cos(i));
+                           sin(Om) * (cos(w + v) + e * cos(w)) * cos(i)) / 1e3;
   const v_y = -(mu / h) * (sin(Om) * (sin(w + v) + e * sin(w)) -
-                           cos(Om) * (cos(w + v) + e * cos(w)) * cos(i));
-  const v_z = (mu / h) * (cos(w + v) + e * cos(w)) * sin(i);
+                           cos(Om) * (cos(w + v) + e * cos(w)) * cos(i)) / 1e3;
+  const v_z = (mu / h) * (cos(w + v) + e * cos(w)) * sin(i) / 1e3;
+
   return [{ x, y, z }, { x: v_x, y: v_y, z: v_z }];
 }
 

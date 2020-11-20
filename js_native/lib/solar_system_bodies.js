@@ -1,7 +1,7 @@
 'use strict';
 
 const { log10, sqrt, PI } = Math;
-const { AU, GM, G } = require('./constants.js');
+const { AU, GM, G, SOLAR_MASS, SOLAR_RADIUS } = require('./constants.js');
 const {
   calc_lum,
   calc_aphelion,
@@ -13,8 +13,8 @@ const {
 
 
 const sun = {
-  mass: GM / G,
-  radius: 696342,
+  mass: SOLAR_MASS,
+  radius: SOLAR_RADIUS,
   temp: 5778,
   luminosity: calc_lum(696342, 5778),
 };
