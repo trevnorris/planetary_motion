@@ -29,6 +29,7 @@ const mercury = {
   semi_major: AU * 0.3870973,
   eccentricity: 0.20563069,
   inclination: 6.3472876,
+  mean_anomaly: 174.796,
   periapsis_arg: 77.45645,  // Argument of periapsis
   ascending_node: 48.33167, // Longitude of ascending node
 };
@@ -39,6 +40,7 @@ const venus = {
   semi_major: AU * 0.723331,
   eccentricity: 0.00677323,
   inclination: 2.1545480,
+  mean_anomaly: 50.115,
   periapsis_arg: 131.53298,  // Argument of periapsis
   ascending_node: 76.68069,  // Longitude of ascending node
 };
@@ -49,6 +51,7 @@ const earth = {
   semi_major: AU * 0.99999636386,
   eccentricity: 0.01671022,
   inclination: 1.5717062,
+  mean_anomaly: 358.617,
   periapsis_arg: 102.94719,  // Argument of periapsis
   ascending_node: -11.26064, // Longitude of ascending node
 };
@@ -59,6 +62,7 @@ const mars = {
   semi_major: AU * 1.5236716,
   eccentricity: 0.09341233,
   inclination: 1.6311871,
+  mean_anomaly: 19.412,
   periapsis_arg: 336.04084,  // Argument of periapsis
   ascending_node: 49.57854,  // Longitude of ascending node
 };
@@ -69,6 +73,7 @@ const jupiter = {
   semi_major: AU * 5.20114,
   eccentricity: 0.04839266,
   inclination: 0.3219657,
+  mean_anomaly: 20.020,
   periapsis_arg: 14.75385,   // Argument of periapsis
   ascending_node: 100.55615, // Longitude of ascending node
 };
@@ -79,6 +84,7 @@ const saturn = {
   semi_major: AU * 9.537924,
   eccentricity: 0.05415060,
   inclination: 0.9254848,
+  mean_anomaly: 317.020,
   periapsis_arg: 92.43194,   // Argument of periapsis
   ascending_node: 113.71504, // Longitude of ascending node
 };
@@ -89,6 +95,7 @@ const uranus = {
   semi_major: AU * 19.18304,
   eccentricity: 0.04716771,
   inclination: 0.9946743,
+  mean_anomaly: 142.2386,
   periapsis_arg: 170.96424,  // Argument of periapsis
   ascending_node: 74.22988,  // Longitude of ascending node
 };
@@ -99,6 +106,7 @@ const neptune = {
   semi_major: AU * 30.0547,
   eccentricity: 0.00858587,
   inclination: 0.7354109,
+  mean_anomaly: 256.228,
   periapsis_arg: 44.97135,   // Argument of periapsis
   ascending_node: 131.72169, // Longitude of ascending node
 };
@@ -124,8 +132,8 @@ const stars = {
 const planets = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune];
 planets.forEach(p => {
   const e = p.eccentricity;
-  p.perihelion = calc_perihelion(p.semi_major, e);
-  p.aphelion = calc_aphelion(p.semi_major, e);
+  p.perihelion = calc_perihelion(p.semi_major, e) / 1e3;
+  p.aphelion = calc_aphelion(p.semi_major, e) / 1e3;
   p.period = calc_orbit_period(p.semi_major, sun.mass);
   p.mean_speed = calc_mean_speed(p.semi_major, p.period, e);
 });

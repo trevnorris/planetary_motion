@@ -13,7 +13,7 @@ module.exports = gen_system;
 function gen_system(pargs) {
   const argv = parse_args(pargs)
 
-  if (argv.help) {
+  if (argv.help || pargs.length === 0) {
     return console.log(
       readFileSync(__dirname + '/../help/gen-system.txt').toString());
   }

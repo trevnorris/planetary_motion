@@ -1,5 +1,7 @@
 'use strict';
 
+const { floor } = Math;
+
 // Return seconds in an HH:MM:SS format
 function sec_to_string(s) {
   let sec = 0;
@@ -21,8 +23,13 @@ function sec_to_string(s) {
   return s > 0 ? `${s}:${outs}` : outs;
 }
 
+
+function pad1(n) {
+  return n < 10 ? `0${n}` : `${n}`;
+}
+
 function deep_numberify(obj) {
-  Object.keys(obj).forEach((e) => {
+  for (const e in obj) {
     const o = obj[e];
     if (typeof o === 'string') {
       if (!isNaN(o))

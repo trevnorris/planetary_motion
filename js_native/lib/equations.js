@@ -1,6 +1,6 @@
 'use strict';
 
-const { PI, atan, cos, floor, log10, sin, sqrt, tan } = Math;
+const { PI, abs, asin, atan, cos, floor, log10, sin, sqrt, tan } = Math;
 const {
   C,
   DAY,
@@ -30,7 +30,7 @@ function r2d(n) {
  * r - radius of object in km.
  */
 function arcsec_diameter(a, r) {
-  return 2 * r2d(atan(r / a)) * 3600;
+  return 2 * r2d(asin(r / a)) * 3600;
 }
 
 /**
@@ -41,7 +41,7 @@ function arcsec_diameter(a, r) {
  * m - perceived distance in meters.
  */
 function angular_diameter(a, r, m = 1) {
-  return 2 * atan(r / a) * m * 1000;
+  return 2 * asin(r / a) * m * 1000;
 }
 
 /**
@@ -64,6 +64,28 @@ function black_body_temp(T, R, D, a) {
  */
 function calc_aphelion(a, e) {
   return a * 1000 / (1 + e);
+}
+
+/**
+ * Approximate the eccentric anomaly from the mean anomaly in degrees.
+ * M - mean anomaly in degrees
+ * e - eccentricity
+ */
+function calc_eccentric_anomaly(M, e) {
+  const m = d2r(M);
+  let E = PI * 2;
+  let diff = PI;
+
+  for (let i = 0; i < 30; i++) {
+    // Calculating the mean anomaly for comparison.
+    const t = E - e * sin(E);
+    if (abs(t - m) < 1e-9)
+      break;
+    E += t > m ? -diff : diff;
+    diff /= 2;
+  }
+
+  return r2d(E);
 }
 
 /**
@@ -232,17 +254,21 @@ function grshift_year(a, M, e) {
  * i - inclination in degrees
  * w - argument of periapsis (ω) in degrees
  * Om - longitude of ascending node (ω or Ω) in degrees
+ * m - mean anomaly
  * E - eccentric anomaly < 2π, angle of point P if orbit of P was a circle.
  * v - true anomaly (ν, θ, or f)
  * r - radius; distance from the focus to point P
  * h - angular momentum
  */
-function kep_to_cart(M, a, e, i, w, Om, E) {
+function kep_to_cart(M, a, e, i, w, Om, m) {
   a *= 1000;  // from km to m
   i = d2r(i);
   w = d2r(w);
   Om = d2r(Om);
 
+  // TODO(trevnorris): There should be other equations that allow going from
+  // mean anomaly directly to true anomaly and radius.
+  const E = calc_eccentric_anomaly(m, e);
   const v = 2 * atan(sqrt((1 + e) / (1 - e)) * tan(E / 2));
   const r = a * (1 - e * cos(E));
   const mu = G * M;
@@ -265,32 +291,6 @@ function kep_to_cart(M, a, e, i, w, Om, E) {
 // D - distance from star in km
 function relative_mag(M, D) {
   return M - 5 + 5 * log10(D * 1000);
-}
-
-/**
- * Rotate main coord by t degrees.
- *
- * a - perihelion in km
- * b - TODO(trevnorris) no idea, but usually is 0.
- * t - periapsis in km
- */
-function rotate_main(a, b, t) {
-  a *= 1000;
-  t *= 1000;
-  return a * cos(t * PI / 180) - b * sin(t * PI / 180);
-}
-
-/**
- * Rotate secondary coord by t degrees
- *
- * a - perihelion in km
- * b - TODO(trevnorris) no idea, but usually is 0.
- * t - periapsis in km
- */
-function rotate_second(a, b, t) {
-  a *= 1000;
-  t *= 1000;
-  return a * sin(t * PI / 180) + b * cos(t * PI / 180);
 }
 
 /**
@@ -328,6 +328,7 @@ module.exports = {
   arcsec_diameter,
   black_body_temp,
   calc_aphelion,
+  calc_eccentric_anomaly,
   calc_lum,
   calc_mean_speed,
   calc_orbit_period,
@@ -340,8 +341,6 @@ module.exports = {
   grshift_year,
   kep_to_cart,
   relative_mag,
-  rotate_main,
-  rotate_second,
   star_to_period,
   temp_to_semimajor,
 };
