@@ -2,7 +2,7 @@ Usage: gen-system [OPTION]...
 
 Generate a star system given the list of OPTIONs.
 
-      --config=FILE     file path to configuration file containing parameters to
+  -c, --config=FILE     file path to configuration file containing parameters to
                           use when generating the star system
   -h, --help            display this help and exit
 

@@ -1,6 +1,12 @@
 'use strict';
 
-const { floor } = Math;
+const { floor, random } = Math;
+
+module.exports = {
+  deep_numberify,
+  rand_range,
+  sec_to_string,
+};
 
 // Return seconds in an HH:MM:SS format
 function sec_to_string(s) {
@@ -32,18 +38,15 @@ function deep_numberify(obj) {
   for (const e in obj) {
     const o = obj[e];
     if (typeof o === 'string') {
-      if (!isNaN(o))
-        obj[e] = +o;
-      return;
-    }
-    if (typeof o === 'object' && o !== null)
+      if (!isNaN(o)) obj[e] = +o;
+    } else if (typeof o === 'object' && o !== null) {
       deep_numberify(o);
-  });
+    }
+  }
 
   return obj;
 }
 
-module.exports = {
-  sec_to_string,
-  deep_numberify,
-};
+function rand_range(n, m) {
+  return random() * (m - n) + n;
+}

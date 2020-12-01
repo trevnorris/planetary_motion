@@ -71,8 +71,8 @@ function calc_aphelion(a, e) {
  * M - mean anomaly in degrees
  * e - eccentricity
  */
-function calc_eccentric_anomaly(M, e) {
-  const m = d2r(M);
+function calc_eccentric_anomaly(m, e) {
+  m = d2r(m);
   let E = PI * 2;
   let diff = PI;
 
@@ -274,15 +274,24 @@ function kep_to_cart(M, a, e, i, w, Om, m) {
   const mu = G * M;
   const h = sqrt(mu * a / (1 - e**2));
 
-  const x = r * (cos(Om) * cos(w + v) - sin(Om) * sin(w + v) * cos(i)) / 1e3;
-  const y = r * (sin(Om) * cos(w + v) + cos(Om) * sin(w + v) * cos(i)) / 1e3;
-  const z = r * (sin(i) * sin(w + v)) / 1e3;
+  const cos_Om = cos(Om);
+  const cos_i = cos(i);
+  const cos_w = cos(w);
+  const cos_wv = cos(w + v);
+  const sin_Om = sin(Om);
+  const sin_i = sin(i);
+  const sin_w = sin(w);
+  const sin_wv = sin(w + v);
 
-  const v_x = -(mu / h) * (cos(Om) * (sin(w + v) + e * sin(w)) +
-                           sin(Om) * (cos(w + v) + e * cos(w)) * cos(i)) / 1e3;
-  const v_y = -(mu / h) * (sin(Om) * (sin(w + v) + e * sin(w)) -
-                           cos(Om) * (cos(w + v) + e * cos(w)) * cos(i)) / 1e3;
-  const v_z = (mu / h) * (cos(w + v) + e * cos(w)) * sin(i) / 1e3;
+  const x = r * (cos_Om * cos_wv - sin_Om * sin_wv * cos_i) / 1e3;
+  const y = r * (sin_Om * cos_wv + cos_Om * sin_wv * cos_i) / 1e3;
+  const z = r * (sin_i * sin_wv) / 1e3;
+
+  const v_x = -(mu / h) * (cos_Om * (sin_wv + e * sin_w) +
+                           sin_Om * (cos_wv + e * cos_w) * cos_i) / 1e3;
+  const v_y = -(mu / h) * (sin_Om * (sin_wv + e * sin_w) -
+                           cos_Om * (cos_wv + e * cos_w) * cos_i) / 1e3;
+  const v_z = (mu / h) * (cos_wv + e * cos_w) * sin_i / 1e3;
 
   return [{ x, y, z }, { x: v_x, y: v_y, z: v_z }];
 }
@@ -319,7 +328,9 @@ function star_to_period(P, T, R, A, M) {
  */
 function temp_to_semimajor(P, T, R, A) {
   P += 273.15;
-  return (sqrt(1 - A) * R * 1000 * T**2 / (2 * P**2)) / 1000;
+  R *= 1000;
+  // TODO There should be a correction facter of (1 - A) / 𝜀
+  return T**2 * R * sqrt(1 - A) / (2 * P**2) / 1000;
 }
 
 
