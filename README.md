@@ -16,3 +16,10 @@ To build the src/ directory run:
 
 Configure the planets using a planets.ini file that specifies the mass, position,
 velocity and acceleration.
+
+There's also a Node.js version. Run the example using `node test/test-system.js`.
+The file needs to be edited to change the plants calculated. Can also run with
+the options:
+```js
+node test/test-system.js --years=<years_to_calc> --step=<step_calc_in_sec>
+```
