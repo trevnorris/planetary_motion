@@ -124,7 +124,7 @@ class Vector {
     return *this;
   }
 
- private:
+ //private:
   double coords_[3];
 };
 

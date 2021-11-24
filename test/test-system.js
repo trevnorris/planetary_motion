@@ -45,7 +45,7 @@ for (let i = 0; i < total_time; i += step) {
   print_time(i);
   iter++;
   system.step(step);
-  const bbt = black_body_temp(SUN.SURFACE_TEMP,
+  const bbt = black_body_temp(SUN.TEMP,
                               SUN.RADIUS,
                               earth.pos().mag(sun.pos()),
                               0.367);
