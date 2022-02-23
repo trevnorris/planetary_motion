@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "minimist": "^1.2.5"
+  },
+  "name": "planetary_motion",
+  "description": "Planetary Motion Library",
+  "version": "0.1.0",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trevnorris/planetary_motion.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/trevnorris/planetary_motion/issues"
+  },
+  "homepage": "https://github.com/trevnorris/planetary_motion#readme"
+}
