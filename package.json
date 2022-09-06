@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "ini": "^2.0.0",
     "minimist": "^1.2.5"
   },
   "name": "planetary_motion",
